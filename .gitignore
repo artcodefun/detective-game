@@ -1,0 +1,46 @@
+# Flutter
+mobile/.dart_tool/
+mobile/.packages
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.pub-cache/
+mobile/.pub/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/*.iml
+mobile/.idea/
+
+# Backend
+backend/node_modules/
+backend/venv/
+backend/.env
+
+# Python / Jupyter
+tools/**/.venv/
+tools/**/__pycache__/
+tools/**/*.pyc
+tools/**/.ipynb_checkpoints/
+
+# Generated assets (copy to mobile/assets manually)
+tools/characters/*.png
+tools/evidence/*.png
+tools/audio/*.wav
+tools/audio/*.mp3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets
+.env
+*.pem
