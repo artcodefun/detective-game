@@ -252,6 +252,10 @@ class GameSession {
     return copyWith(actionPoints: actionPoints - 1);
   }
 
+  GameSession spendActionPoints(int amount) {
+    return copyWith(actionPoints: actionPoints - amount);
+  }
+
   GameSession addChronologyEntry(ChronologyEntry entry) {
     final updated = List<ChronologyEntry>.from(chronology)..add(entry);
     return copyWith(chronology: updated);
