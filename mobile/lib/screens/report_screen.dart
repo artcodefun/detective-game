@@ -1,70 +1,157 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../blocs/session_cubit.dart';
+import '../models/report.dart';
+import '../services/mock_llm_service.dart';
 import 'results_screen.dart';
 
-class ReportScreen extends StatelessWidget {
+class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
+
+  @override
+  State<ReportScreen> createState() => _ReportScreenState();
+}
+
+class _ReportScreenState extends State<ReportScreen> {
+  final _whoController = TextEditingController();
+  final _whyController = TextEditingController();
+  final _howController = TextEditingController();
+  final _whenController = TextEditingController();
+  final _evidenceController = TextEditingController();
+  final _llm = MockLlmService();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _whoController.dispose();
+    _whyController.dispose();
+    _howController.dispose();
+    _whenController.dispose();
+    _evidenceController.dispose();
+    super.dispose();
+  }
+
+  bool get _allFilled =>
+      _whoController.text.trim().isNotEmpty &&
+      _whyController.text.trim().isNotEmpty &&
+      _howController.text.trim().isNotEmpty &&
+      _whenController.text.trim().isNotEmpty &&
+      _evidenceController.text.trim().isNotEmpty;
+
+  Future<void> _submit() async {
+    if (!_allFilled || _submitting) return;
+    setState(() => _submitting = true);
+
+    final report = FinalReport(
+      who: _whoController.text.trim(),
+      why: _whyController.text.trim(),
+      how: _howController.text.trim(),
+      when: _whenController.text.trim(),
+      evidence: _evidenceController.text.trim(),
+    );
+
+    final session = context.read<SessionCubit>().state!;
+    final feedback = await _llm.evaluateReport(
+      playerReport: report,
+      groundTruth: session.crime,
+    );
+
+    if (!mounted) return;
+
+    final breakdown = ScoreBreakdown(
+      whoCorrect: feedback.breakdownDetails['who']?.startsWith('Верно') ?? false,
+      whyCorrect: feedback.breakdownDetails['why']?.startsWith('Правильно') ?? false,
+      howCorrect: feedback.breakdownDetails['how']?.startsWith('Да') ?? false,
+      whenCorrect: feedback.breakdownDetails['when']?.startsWith('Время указано верно') ?? false,
+      evidenceCorrect: feedback.breakdownDetails['evidence']?.startsWith('Хорошо') ?? false,
+    );
+
+    final result = GameResult(
+      playerReport: report,
+      breakdown: breakdown,
+      narrativeFeedback: feedback.narrativeFeedback,
+      breakdownDetails: feedback.breakdownDetails,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ResultsScreen(result: result)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Финальный отчёт'),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text('Финальный отчёт')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Изложите вашу версию событий',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Изложите вашу версию событий', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text(
-              'Осветите все обязательные пункты',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(120),
-              ),
-            ),
+            Text('Заполните все разделы', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120))),
             const SizedBox(height: 20),
-            Expanded(
-              child: TextField(
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                decoration: InputDecoration(
-                  hintText:
-                      'Кто совершил преступление?\nПочему?\nКаким способом?\nВ какое время?\nКакие улики это подтверждают?',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+            _Field(label: 'Кто преступник?', hint: 'Майкл Браун...', controller: _whoController, onChanged: _onChanged),
+            const SizedBox(height: 12),
+            _Field(label: 'Почему?', hint: 'Хищение средств...', controller: _whyController, onChanged: _onChanged),
+            const SizedBox(height: 12),
+            _Field(label: 'Каким способом?', hint: 'Отравление цианидом...', controller: _howController, onChanged: _onChanged),
+            const SizedBox(height: 12),
+            _Field(label: 'В какое время?', hint: 'Около 22:15...', controller: _whenController, onChanged: _onChanged),
+            const SizedBox(height: 12),
+            _Field(label: 'Какие улики это подтверждают?', hint: 'Бокал с цианидом, фин. документы...', controller: _evidenceController, onChanged: _onChanged),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ResultsScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.send),
-                label: const Text('Отправить отчёт'),
+                onPressed: _allFilled && !_submitting ? _submit : null,
+                icon: _submitting
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.send),
+                label: Text(_submitting ? 'Проверяем...' : 'Отправить отчёт'),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _onChanged(String _) => setState(() {});
+}
+
+class _Field extends StatelessWidget {
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _Field({required this.label, required this.hint, required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          maxLines: 2,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: hint,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            contentPadding: const EdgeInsets.all(12),
+          ),
+        ),
+      ],
     );
   }
 }
