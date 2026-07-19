@@ -17,7 +17,7 @@ class DocumentScreen extends StatelessWidget {
       body: Container(
         color: const Color(0xFFF5F0E8),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,

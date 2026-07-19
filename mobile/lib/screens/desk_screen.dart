@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
 import '../models/game_state.dart';
-import 'document_screen.dart';
-import 'evidence_locker_screen.dart';
+import 'actions_screen.dart';
+import 'case_file_screen.dart';
 import 'interrogation_screen.dart';
 import 'notebook_screen.dart';
 import 'report_screen.dart';
@@ -58,8 +58,15 @@ class DeskScreen extends StatelessWidget {
                     child:                     _DeskItem(
                       icon: Icons.folder,
                       label: 'Дело',
-                      subtitle: 'факты',
-                      onTap: () => _openCaseFile(context, session),
+                      subtitle: 'факты и улики',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CaseFileScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -97,14 +104,14 @@ class DeskScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _DeskItem(
-                      icon: Icons.inventory_2,
-                      label: 'Улики',
-                      subtitle: 'вещдоки и анализ',
+                      icon: Icons.build,
+                      label: 'Действия',
+                      subtitle: 'анализы и запросы',
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const EvidenceLockerScreen(),
+                            builder: (_) => const ActionsScreen(),
                           ),
                         );
                       },
@@ -131,30 +138,6 @@ class DeskScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _openCaseFile(BuildContext context, GameSession session) {
-    final crime = session.crime;
-    final buffer = StringBuffer()
-      ..writeln('Тип преступления: ${crime.typeLabel}')
-      ..writeln('Жертва: ${crime.victim}')
-      ..writeln('Время преступления: ${crime.timeOfCrime}')
-      ..writeln()
-      ..writeln('Известные факты:')
-      ..writeln('• Мотив: ${crime.motive}')
-      ..writeln('• Способ: ${crime.method}')
-      ..writeln()
-      ..writeln('Подозреваемые:');
-    for (final c in session.characters) {
-      buffer.writeln('• ${c.base.name} — ${c.base.profession}');
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DocumentScreen(title: 'Дело', body: buffer.toString()),
       ),
     );
   }
