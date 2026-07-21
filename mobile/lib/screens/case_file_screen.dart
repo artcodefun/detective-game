@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
+import '../models/action_report.dart';
 import '../models/scenario.dart';
+import 'document_screen.dart';
 
 class CaseFileScreen extends StatelessWidget {
   const CaseFileScreen({super.key});
@@ -96,16 +98,31 @@ class _FactsTab extends StatelessWidget {
   }
 }
 
+sealed class _Item {}
+
+class _EvidenceItem extends _Item {
+  final Evidence evidence;
+  _EvidenceItem(this.evidence);
+}
+
+class _ReportItem extends _Item {
+  final ActionReport report;
+  _ReportItem(this.report);
+}
+
 class _EvidenceTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionCubit>().state!;
-    final evidence = session.evidence;
+    final items = <_Item>[
+      ...session.evidence.map((e) => _EvidenceItem(e)),
+      ...session.reports.map((r) => _ReportItem(r)),
+    ];
 
-    if (evidence.isEmpty) {
+    if (items.isEmpty) {
       return Center(
         child: Text(
-          'Улик пока нет',
+          'Улик и отчётов пока нет',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
           ),
@@ -115,8 +132,12 @@ class _EvidenceTab extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: evidence.length,
-      itemBuilder: (_, index) => _EvidenceCard(evidence: evidence[index]),
+      itemCount: items.length,
+      itemBuilder: (_, index) {
+        final item = items[index];
+        if (item is _EvidenceItem) return _EvidenceCard(evidence: item.evidence);
+        return _ReportCard(report: (item as _ReportItem).report);
+      },
     );
   }
 }
@@ -146,34 +167,11 @@ class _EvidenceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            evidence.name,
-                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        if (evidence.analyzed)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary.withAlpha(30),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'анализ готов',
-                              style: TextStyle(fontSize: 10, color: colorScheme.primary),
-                            ),
-                          ),
-                      ],
-                    ),
+                    Text(evidence.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
                     Text(
                       evidence.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withAlpha(140),
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
                     ),
                   ],
                 ),
@@ -216,21 +214,58 @@ class _EvidenceCard extends StatelessWidget {
             Text(evidence.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Text(evidence.detailedDescription, style: theme.textTheme.bodyMedium),
-            if (evidence.analyzed && evidence.analysisResult != null) ...[
-              const SizedBox(height: 16),
-              Text('Результат анализа', style: theme.textTheme.labelLarge?.copyWith(color: colorScheme.primary)),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(evidence.analysisResult!, style: theme.textTheme.bodyMedium),
-              ),
-            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportCard extends StatelessWidget {
+  final ActionReport report;
+
+  const _ReportCard({required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DocumentScreen(title: report.title, body: report.body),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(Icons.description, size: 28, color: colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(report.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(
+                      report.description,
+                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 20, color: colorScheme.onSurface.withAlpha(80)),
+            ],
+          ),
         ),
       ),
     );

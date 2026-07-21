@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
+import '../models/action_report.dart';
 import '../models/chronology_entry.dart';
 import '../models/game_state.dart';
 import '../models/notebook.dart';
-import '../models/scenario.dart';
 
 enum _ActionKind { evidenceAnalysis, suspectAction, camera, alibi }
 
@@ -163,15 +163,17 @@ class _ActionCard extends StatelessWidget {
     final spent = session.spendActionPoints(action.cost);
     var updated = spent;
 
-    if (evidenceId != null) {
-      final idx = updated.evidence.indexWhere((e) => e.id == evidenceId);
-      if (idx >= 0) {
-        final ev = updated.evidence[idx];
-        final evUpdated = ev.copyWith(analyzed: true, analysisResult: '${action.name} завершён. Следов не обнаружено.');
-        final list = List<Evidence>.from(updated.evidence)..[idx] = evUpdated;
-        updated = updated.copyWith(evidence: list);
-      }
-    }
+    final resultText = _resultText(session, evidenceId: evidenceId, characterId: characterId, alibiText: alibiText);
+    final report = ActionReport(
+      id: 'report_${DateTime.now().millisecondsSinceEpoch}',
+      title: action.name,
+      description: resultText.length > 80 ? '${resultText.substring(0, 80)}...' : resultText,
+      body: resultText,
+      evidenceId: evidenceId,
+      characterId: characterId,
+      timestamp: DateTime.now(),
+    );
+    updated = updated.addReport(report);
 
     final entry = ChronologyEntry(
       id: 'chron_action_${DateTime.now().millisecondsSinceEpoch}',
@@ -222,6 +224,30 @@ class _ActionCard extends StatelessWidget {
   String _evidenceName(GameSession session, String id) {
     final ev = session.evidence.where((e) => e.id == id).firstOrNull;
     return ev?.name ?? id;
+  }
+
+  String _resultText(GameSession session, {String? evidenceId, String? characterId, String? alibiText}) {
+    if (evidenceId != null) {
+      final name = _evidenceName(session, evidenceId);
+      return 'Результат ${action.name.toLowerCase()} для улицы «$name»:\n\n'
+          'Следов ДНК, соответствующих подозреваемым, не обнаружено. '
+          'Материал передан в лабораторию для дальнейшего анализа.';
+    }
+    if (characterId != null) {
+      final name = _characterName(session, characterId);
+      return 'Результат запроса ${action.name.toLowerCase()} для $name:\n\n'
+          'Данные получены. Анализ показал, что в указанный период '
+          'никаких подозрительных операций не зафиксировано.';
+    }
+    if (alibiText != null) {
+      return 'Результат проверки алиби:\n\n'
+          'Запрос: $alibiText\n\n'
+          'Агенты проверили указанное место. Показания свидетелей '
+          'частично подтверждают алиби, но есть расхождения по времени. '
+          'Рекомендуется продолжить расследование.';
+    }
+    return 'Результат ${action.name.toLowerCase()}:\n\n'
+        'Запрос выполнен. Полученные данные добавлены в дело.';
   }
 
   Future<void> _showActionSheet(BuildContext context) async {

@@ -1,5 +1,6 @@
 import 'character.dart';
 import 'scenario.dart';
+import 'action_report.dart';
 import 'chronology_entry.dart';
 import 'notebook.dart';
 
@@ -211,6 +212,7 @@ class GameSession {
   final Crime crime;
   final Timeline timeline;
   final List<Evidence> evidence;
+  final List<ActionReport> reports;
   final List<CharacterState> characters;
   final List<ChronologyEntry> chronology;
   final int actionPoints;
@@ -225,6 +227,7 @@ class GameSession {
     required this.timeline,
     required this.evidence,
     required this.characters,
+    this.reports = const [],
     this.chronology = const [],
     this.actionPoints = maxActionPoints,
     this.phase = GamePhase.idle,
@@ -259,6 +262,16 @@ class GameSession {
   GameSession addChronologyEntry(ChronologyEntry entry) {
     final updated = List<ChronologyEntry>.from(chronology)..add(entry);
     return copyWith(chronology: updated);
+  }
+
+  GameSession addEvidence(Evidence entry) {
+    final updated = List<Evidence>.from(evidence)..add(entry);
+    return copyWith(evidence: updated);
+  }
+
+  GameSession addReport(ActionReport entry) {
+    final updated = List<ActionReport>.from(reports)..add(entry);
+    return copyWith(reports: updated);
   }
 
   GameSession addDetailsToChronology(String chronologyId, List<NotebookEntry> details) {
@@ -302,6 +315,7 @@ class GameSession {
     Crime? crime,
     Timeline? timeline,
     List<Evidence>? evidence,
+    List<ActionReport>? reports,
     List<CharacterState>? characters,
     List<ChronologyEntry>? chronology,
     int? actionPoints,
@@ -313,6 +327,7 @@ class GameSession {
       crime: crime ?? this.crime,
       timeline: timeline ?? this.timeline,
       evidence: evidence ?? this.evidence,
+      reports: reports ?? this.reports,
       characters: characters ?? this.characters,
       chronology: chronology ?? this.chronology,
       actionPoints: actionPoints ?? this.actionPoints,
@@ -337,6 +352,18 @@ class GameSession {
                   (e) => ChronologyEntry.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      reports: (json['reports'] as List<dynamic>?)
+              ?.map((e) => ActionReport(
+                    id: e['id'] as String,
+                    title: e['title'] as String,
+                    description: e['description'] as String,
+                    body: e['body'] as String,
+                    evidenceId: e['evidence_id'] as String?,
+                    characterId: e['character_id'] as String?,
+                    timestamp: DateTime.parse(e['timestamp'] as String),
+                  ))
+              .toList() ??
+          [],
       actionPoints: json['action_points'] as int? ?? maxActionPoints,
       phase: GamePhase.values.byName(json['phase'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -349,6 +376,7 @@ class GameSession {
       'crime': crime.toJson(),
       'timeline': timeline.toJson(),
       'evidence': evidence.map((e) => e.toJson()).toList(),
+      'reports': reports.map((e) => e.toJson()).toList(),
       'characters': characters.map((c) => c.toJson()).toList(),
       'chronology': chronology.map((e) => e.toJson()).toList(),
       'action_points': actionPoints,
