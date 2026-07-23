@@ -1,10 +1,81 @@
-# Бэкенд (пока заглушка)
+# Бэкенд
 
-На этапе MVP бэкенд не используется — LLM-запросы идут напрямую с мобильного устройства.
+Go-сервер для игры «Детектив» на стандартном `net/http`.
 
-Ближе к релизу здесь будет:
-- Прокси для DeepSeek API (ключ не на клиенте)
-- Раздача изображений персонажей (вместо bundled assets)
-- Раздача пула персонажей (JSON)
+## Запуск
 
-Ориентировочный стек: Cloudflare Workers / Express / FastAPI — будет выбрано позже.
+```bash
+go run ./cmd/server/
+```
+
+Сервер стартует на порту из `PORT` (по умолчанию `8080`).
+
+## Архитектура
+
+Сервис использует **Hexagonal Architecture (Ports and Adapters)**, **Domain-Driven Design (DDD)**
+и **CQRS** (Command Query Responsibility Segregation).
+
+```
+cmd/server/         — точка входа
+internal/
+├── domain/         — агрегаты, value objects, доменные enum-ы
+├── application/    — слой приложения
+│   ├── commands.go / queries.go  — публичные CQRS-интерфейсы
+│   ├── errors.go                 — AppError, ErrorKind
+│   ├── actor.go                  — контекст запроса (Actor)
+│   ├── readmodels/               — read-модели + мапперы domain → readmodel
+│   ├── commands/                 — реализации команд
+│   ├── queries/                  — реализации запросов
+│   ├── ports/                    — интерфейсы инфраструктуры
+│   └── services/                 — сервисы приложения
+├── bootstrap/      — композиция зависимостей (Pure DI)
+├── infrastructure/ — адаптеры (in-memory storage, mock LLM)
+└── interfaces/     — HTTP-обработчики, роутер, middleware
+```
+
+## Правила
+
+- **Агрегаты инкапсулированы.** Нельзя обращаться к полям агрегатов напрямую
+  извне `domain/`. Любое изменение состояния — только через доменные методы агрегата.
+- **Команды не возвращают доменные структуры.** Результат команды — скалярное значение
+  или ID. Данные для чтения отдаются через запросы.
+- **Запросы возвращают только read-модели.** Запросы никогда не возвращают доменные
+  структуры. Все данные для внешнего потребителя проходят через `readmodels/`.
+- **Порты определяются внутри.** Интерфейсы репозиториев и внешних сервисов живут
+  в `application/ports/` и ссылаются только на доменные типы.
+- **Реализации — снаружи.** Инфраструктурные адаптеры (`infrastructure/`) реализуют
+  порты, но домен и приложение о них не знают.
+
+## API
+
+Все эндпоинты (кроме создания сессии и истории) требуют заголовок `X-Session-ID`.
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| POST | `/api/v1/sessions` | Создать игровую сессию |
+| GET | `/api/v1/sessions/history` | История сессий |
+| GET | `/api/v1/sessions/current` | Текущая сессия |
+| GET | `/api/v1/characters` | Список персонажей |
+| GET | `/api/v1/characters/{charId}` | Детали персонажа |
+| GET | `/api/v1/evidence` | Список улик |
+| GET | `/api/v1/evidence/{evId}` | Детали улики |
+| GET | `/api/v1/chronology` | Хронология событий |
+| PATCH | `/api/v1/chronology/{chronId}/notes/{noteId}` | Обновить заметки |
+| POST | `/api/v1/interrogations` | Начать допрос |
+| POST | `/api/v1/interrogations/{interId}/messages` | Отправить сообщение |
+| GET | `/api/v1/interrogations/{interId}/messages` | История допроса |
+| PATCH | `/api/v1/interrogations/{interId}/complete` | Завершить допрос |
+| POST | `/api/v1/actions/dna-analysis` | Анализ ДНК |
+| POST | `/api/v1/actions/fingerprints` | Отпечатки пальцев |
+| POST | `/api/v1/actions/alibi-check` | Проверка алиби |
+| POST | `/api/v1/actions/camera-review` | Записи с камер |
+| POST | `/api/v1/actions/call-history` | История звонков |
+| POST | `/api/v1/actions/transactions` | Банковские операции |
+| POST | `/api/v1/reports` | Отправить финальный отчёт |
+| GET | `/api/v1/reports/{reportId}` | Просмотр отчёта |
+
+## Текущее состояние
+
+- **Storage:** In-memory (сбрасывается при перезапуске)
+- **LLM:** Mock-сервис с предзаданным сценарием (убийство на вилле)
+- **Персонажи:** 5 предзагруженных прототипов

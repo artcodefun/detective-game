@@ -1,0 +1,445 @@
+package http
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/artcodefun/detective-game/backend/internal/application"
+	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
+	"github.com/google/uuid"
+)
+
+type Handlers struct {
+	Scenario      application.ScenarioCommands
+	Interrogation application.InterrogationCommands
+	Evaluation    application.EvaluationCommands
+	Actions       application.ActionCommands
+	Notebook      application.NotebookCommands
+
+	Session    application.SessionQueries
+	Character  application.CharacterQueries
+	Evidence   application.EvidenceQueries
+	Chronology application.ChronologyQueries
+	Chat       application.ChatQueries
+}
+
+// POST /api/v1/sessions
+func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := h.Scenario.CreateSession(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create session")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"session_id": sessionID.String()})
+}
+
+// GET /api/v1/sessions/history
+func (h *Handlers) ListHistory(w http.ResponseWriter, r *http.Request) {
+	history, err := h.Session.ListHistory(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list history")
+		return
+	}
+	if history == nil {
+		history = make([]*readmodels.Session, 0)
+	}
+	writeJSON(w, http.StatusOK, history)
+}
+
+// GET /api/v1/sessions/current
+func (h *Handlers) GetSession(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	session, err := h.Session.GetSession(r.Context(), actor)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "session not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+// GET /api/v1/evidence
+func (h *Handlers) ListEvidence(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	ev, err := h.Evidence.ListEvidence(r.Context(), actor)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "session not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, ev)
+}
+
+// GET /api/v1/evidence/{evId}
+func (h *Handlers) GetEvidence(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	evID, err := uuid.Parse(r.PathValue("evId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid evidence id")
+		return
+	}
+	ev, err := h.Evidence.GetEvidence(r.Context(), actor, evID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "evidence not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, ev)
+}
+
+// GET /api/v1/characters
+func (h *Handlers) ListCharacters(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	chars, err := h.Character.ListCharacters(r.Context(), actor)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "session not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, chars)
+}
+
+// GET /api/v1/characters/{charId}
+func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	charID, err := uuid.Parse(r.PathValue("charId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid character id")
+		return
+	}
+	char, err := h.Character.GetCharacter(r.Context(), actor, charID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "character not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, char)
+}
+
+// GET /api/v1/chronology
+func (h *Handlers) GetChronology(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	chron, err := h.Chronology.GetChronology(r.Context(), actor)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "session not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, chron)
+}
+
+// PATCH /api/v1/chronology/{chronId}/notes/{noteId}
+func (h *Handlers) UpdateNotebookEntry(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	chronID, err := uuid.Parse(r.PathValue("chronId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid chronology id")
+		return
+	}
+	entryID, err := uuid.Parse(r.PathValue("noteId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid note id")
+		return
+	}
+
+	var body struct {
+		Tags []domain.NoteTag `json:"tags"`
+		Note *string          `json:"note,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	if err := h.Notebook.UpdateNotebookEntry(r.Context(), actor, chronID, entryID, body.Tags, body.Note); err != nil {
+		writeError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// POST /api/v1/interrogations
+func (h *Handlers) CreateInterrogation(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	var body struct {
+		CharacterID uuid.UUID `json:"character_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	inter, err := h.Interrogation.Create(r.Context(), actor, body.CharacterID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, inter)
+}
+
+// GET /api/v1/interrogations/{interId}
+func (h *Handlers) GetInterrogation(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	interID, err := uuid.Parse(r.PathValue("interId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid interrogation id")
+		return
+	}
+
+	inter, err := h.Chat.GetInterrogation(r.Context(), actor, interID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "interrogation not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, inter)
+}
+
+// POST /api/v1/interrogations/{interId}/messages
+func (h *Handlers) AddInterrogationMessage(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	interID, err := uuid.Parse(r.PathValue("interId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid interrogation id")
+		return
+	}
+
+	var body struct {
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if body.Message == "" {
+		writeError(w, http.StatusBadRequest, "message is required")
+		return
+	}
+
+	msgID, err := h.Interrogation.AddMessage(r.Context(), actor, interID, body.Message)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+
+	msg, err := h.Chat.GetChatMessage(r.Context(), actor, msgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get message")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, msg)
+}
+
+// GET /api/v1/interrogations/{interId}/messages
+func (h *Handlers) GetInterrogationMessages(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	interID, err := uuid.Parse(r.PathValue("interId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid interrogation id")
+		return
+	}
+
+	messages, err := h.Chat.ListChatByInterrogation(r.Context(), actor, interID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list messages")
+		return
+	}
+	if messages == nil {
+		messages = make([]*readmodels.ChatMessage, 0)
+	}
+
+	writeJSON(w, http.StatusOK, messages)
+}
+
+// PATCH /api/v1/interrogations/{interId}/complete
+func (h *Handlers) CompleteInterrogation(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	interID, err := uuid.Parse(r.PathValue("interId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid interrogation id")
+		return
+	}
+
+	if err := h.Interrogation.Complete(r.Context(), actor, interID); err != nil {
+		writeAppError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// POST /api/v1/actions/dna-analysis
+func (h *Handlers) DNAAnalysis(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	var body struct {
+		EvidenceID uuid.UUID `json:"evidence_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	reportID, err := h.Actions.DNAAnalysis(r.Context(), actor, body.EvidenceID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// POST /api/v1/actions/fingerprints
+func (h *Handlers) FingerprintsCheck(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	var body struct {
+		EvidenceID uuid.UUID `json:"evidence_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	reportID, err := h.Actions.FingerprintsCheck(r.Context(), actor, body.EvidenceID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// POST /api/v1/actions/alibi-check
+func (h *Handlers) AlibiCheck(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	var body struct {
+		CharacterID uuid.UUID `json:"character_id"`
+		AlibiText   string    `json:"alibi_text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	reportID, err := h.Actions.AlibiCheck(r.Context(), actor, body.CharacterID, body.AlibiText)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// POST /api/v1/actions/camera-review
+func (h *Handlers) CameraReview(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	reportID, err := h.Actions.CameraReview(r.Context(), actor)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// POST /api/v1/actions/call-history
+func (h *Handlers) CallHistory(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	var body struct {
+		CharacterID uuid.UUID `json:"character_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	reportID, err := h.Actions.CallHistory(r.Context(), actor, body.CharacterID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// POST /api/v1/actions/transactions
+func (h *Handlers) TransactionCheck(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	var body struct {
+		CharacterID uuid.UUID `json:"character_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	reportID, err := h.Actions.TransactionCheck(r.Context(), actor, body.CharacterID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get report")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// GET /api/v1/reports/{reportId}
+func (h *Handlers) GetReport(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	reportID, err := uuid.Parse(r.PathValue("reportId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid report id")
+		return
+	}
+	report, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "report not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+// POST /api/v1/reports
+func (h *Handlers) SubmitReport(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+
+	var report domain.FinalReport
+	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	if err := h.Evaluation.SubmitReport(r.Context(), actor, report); err != nil {
+		writeAppError(w, err)
+		return
+	}
+
+	result, err := h.Session.GetGameResult(r.Context(), actor)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get result")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
