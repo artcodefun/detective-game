@@ -8,6 +8,7 @@ import (
 
 type Session struct {
 	ID           uuid.UUID   `json:"id"`
+	UserID       uuid.UUID   `json:"user_id"`
 	Crime        Crime       `json:"crime"`
 	Timeline     Timeline    `json:"timeline"`
 	CaseName     string      `json:"case_name"`

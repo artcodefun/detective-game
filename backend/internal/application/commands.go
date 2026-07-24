@@ -8,7 +8,7 @@ import (
 )
 
 type ScenarioCommands interface {
-	CreateSession(ctx context.Context) (uuid.UUID, error)
+	CreateSession(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 }
 
 type InterrogationCommands interface {

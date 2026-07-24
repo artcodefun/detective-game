@@ -13,6 +13,7 @@ import (
 
 type InMemoryStore struct {
 	mu             sync.RWMutex
+	users          map[string]*domain.User
 	sessions       map[string]*domain.Session
 	characters     map[string]*domain.Character
 	interrogations map[string]*domain.Interrogation
@@ -25,6 +26,7 @@ type InMemoryStore struct {
 
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
+		users:          make(map[string]*domain.User),
 		sessions:       make(map[string]*domain.Session),
 		characters:     make(map[string]*domain.Character),
 		interrogations: make(map[string]*domain.Interrogation),
@@ -102,6 +104,25 @@ func (s *InMemoryStore) ByID(_ context.Context, id int) (*domain.CharacterProtot
 	return nil, nil
 }
 
+// UserRepository
+
+func (s *InMemoryStore) CreateUser(_ context.Context, user *domain.User) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.users[user.ID.String()] = user
+	return nil
+}
+
+func (s *InMemoryStore) FindUserByID(_ context.Context, id uuid.UUID) (*domain.User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	user, ok := s.users[id.String()]
+	if !ok {
+		return nil, fmt.Errorf("user %s not found", id)
+	}
+	return user, nil
+}
+
 // SessionRepository
 
 func (s *InMemoryStore) Create(_ context.Context, session *domain.Session) error {
@@ -126,6 +147,21 @@ func (s *InMemoryStore) Update(_ context.Context, session *domain.Session) error
 	defer s.mu.Unlock()
 	s.sessions[session.ID.String()] = session
 	return nil
+}
+
+func (s *InMemoryStore) FindByUserID(_ context.Context, userID uuid.UUID) ([]*domain.Session, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []*domain.Session
+	for _, session := range s.sessions {
+		if session.UserID == userID {
+			result = append(result, session)
+		}
+	}
+	if result == nil {
+		return []*domain.Session{}, nil
+	}
+	return result, nil
 }
 
 // CharacterRepository
@@ -504,12 +540,17 @@ func (s *InMemoryStore) GetGameResult(_ context.Context, sessionID uuid.UUID) (*
 	return readmodels.GameResultFromDomain(session.GameResult), nil
 }
 
-func (s *InMemoryStore) ListHistory(_ context.Context) ([]*readmodels.Session, error) {
+func (s *InMemoryStore) ListHistory(_ context.Context, userID uuid.UUID) ([]*readmodels.Session, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	items := make([]*readmodels.Session, 0, len(s.sessions))
+	var items []*readmodels.Session
 	for _, session := range s.sessions {
-		items = append(items, readmodels.SessionFromDomain(session))
+		if session.UserID == userID {
+			items = append(items, readmodels.SessionFromDomain(session))
+		}
+	}
+	if items == nil {
+		items = make([]*readmodels.Session, 0)
 	}
 	return items, nil
 }

@@ -9,7 +9,7 @@ import (
 
 type SessionQueries interface {
 	GetSession(ctx context.Context, actor Actor) (*readmodels.Session, error)
-	ListHistory(ctx context.Context) ([]*readmodels.Session, error)
+	ListHistory(ctx context.Context, actor Actor) ([]*readmodels.Session, error)
 	GetGameResult(ctx context.Context, actor Actor) (*readmodels.GameResult, error)
 }
 

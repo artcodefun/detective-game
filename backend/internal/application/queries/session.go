@@ -20,8 +20,8 @@ func (q *SessionQueries) GetSession(ctx context.Context, actor application.Actor
 	return q.ReadStore.GetSession(ctx, actor.SessionID)
 }
 
-func (q *SessionQueries) ListHistory(ctx context.Context) ([]*readmodels.Session, error) {
-	return q.ReadStore.ListHistory(ctx)
+func (q *SessionQueries) ListHistory(ctx context.Context, actor application.Actor) ([]*readmodels.Session, error) {
+	return q.ReadStore.ListHistory(ctx, actor.UserID)
 }
 
 func (q *SessionQueries) GetGameResult(ctx context.Context, actor application.Actor) (*readmodels.GameResult, error) {

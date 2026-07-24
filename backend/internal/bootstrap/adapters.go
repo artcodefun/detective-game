@@ -7,6 +7,7 @@ import (
 )
 
 type Adapters struct {
+	Users          ports.UserRepository
 	Sessions       ports.SessionRepository
 	Characters     ports.CharacterRepository
 	Interrogations ports.InterrogationRepository
@@ -29,6 +30,7 @@ type Adapters struct {
 func NewAdapters() *Adapters {
 	store := storage.NewInMemoryStore()
 	return &Adapters{
+		Users:          store,
 		Sessions:       store,
 		Characters:     store,
 		Interrogations: store,

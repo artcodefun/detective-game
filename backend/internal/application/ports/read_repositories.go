@@ -10,7 +10,7 @@ import (
 type SessionReadRepository interface {
 	GetSession(ctx context.Context, sessionID uuid.UUID) (*readmodels.Session, error)
 	GetGameResult(ctx context.Context, sessionID uuid.UUID) (*readmodels.GameResult, error)
-	ListHistory(ctx context.Context) ([]*readmodels.Session, error)
+	ListHistory(ctx context.Context, userID uuid.UUID) ([]*readmodels.Session, error)
 }
 
 type CharacterReadRepository interface {

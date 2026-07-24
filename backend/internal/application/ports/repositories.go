@@ -7,9 +7,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type UserRepository interface {
+	CreateUser(ctx context.Context, user *domain.User) error
+	FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+}
+
 type SessionRepository interface {
 	Create(ctx context.Context, session *domain.Session) error
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Session, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Session, error)
 	Update(ctx context.Context, session *domain.Session) error
 }
 

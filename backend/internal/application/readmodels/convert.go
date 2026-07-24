@@ -7,6 +7,7 @@ import (
 func SessionFromDomain(session *domain.Session) *Session {
 	return &Session{
 		ID:           session.ID,
+		UserID:       session.UserID,
 		Crime:        CrimeFromDomain(session.Crime),
 		Timeline:     TimelineFromDomain(session.Timeline),
 		CaseName:     session.CaseName,

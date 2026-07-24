@@ -10,6 +10,7 @@ import (
 )
 
 type ScenarioCommands struct {
+	Users      ports.UserRepository
 	Sessions   ports.SessionRepository
 	LLM        ports.LlmService
 	Characters ports.CharacterRepository
@@ -17,11 +18,20 @@ type ScenarioCommands struct {
 	Prototypes ports.CharacterPrototypeRepository
 }
 
-func NewScenarioCommands(sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, p ports.CharacterPrototypeRepository) *ScenarioCommands {
-	return &ScenarioCommands{Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Prototypes: p}
+func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, p ports.CharacterPrototypeRepository) *ScenarioCommands {
+	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Prototypes: p}
 }
 
-func (c *ScenarioCommands) CreateSession(ctx context.Context) (uuid.UUID, error) {
+func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	_, err := c.Users.FindUserByID(ctx, userID)
+	if err != nil {
+		user := domain.NewUser()
+		user.ID = userID
+		if err := c.Users.CreateUser(ctx, &user); err != nil {
+			return uuid.Nil, err
+		}
+	}
+
 	prototypes, err := c.Prototypes.GetRandom(ctx, 5)
 	if err != nil {
 		return uuid.Nil, err
@@ -36,6 +46,7 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context) (uuid.UUID, error)
 
 	session := &domain.Session{
 		ID:           sessionID,
+		UserID:       userID,
 		Crime:        output.Crime,
 		Timeline:     output.Timeline,
 		CaseName:     output.CaseName,

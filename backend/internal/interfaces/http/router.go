@@ -40,20 +40,24 @@ func NewRouter(h *Handlers) http.Handler {
 
 func sessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if needsSessionID(r) {
-			sessionID := r.Header.Get("X-Session-ID")
-			if sessionID == "" {
-				writeError(w, http.StatusBadRequest, "missing X-Session-ID header")
-				return
-			}
-			uid, err := uuid.Parse(sessionID)
-			if err != nil {
-				writeError(w, http.StatusBadRequest, "invalid X-Session-ID format")
-				return
-			}
-			actor := application.Actor{SessionID: uid}
-			r = r.WithContext(context.WithValue(r.Context(), sessionKey, actor))
+		userID, err := uuid.Parse(r.Header.Get("X-User-ID"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "missing or invalid X-User-ID header")
+			return
 		}
+
+		actor := application.Actor{UserID: userID}
+
+		if needsSessionID(r) {
+			sessionID, err := uuid.Parse(r.Header.Get("X-Session-ID"))
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "missing or invalid X-Session-ID header")
+				return
+			}
+			actor.SessionID = sessionID
+		}
+
+		r = r.WithContext(context.WithValue(r.Context(), sessionKey, actor))
 		next.ServeHTTP(w, r)
 	})
 }

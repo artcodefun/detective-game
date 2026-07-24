@@ -26,7 +26,8 @@ type Handlers struct {
 
 // POST /api/v1/sessions
 func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
-	sessionID, err := h.Scenario.CreateSession(r.Context())
+	actor := ActorFromContext(r.Context())
+	sessionID, err := h.Scenario.CreateSession(r.Context(), actor.UserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create session")
 		return
@@ -36,7 +37,8 @@ func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/v1/sessions/history
 func (h *Handlers) ListHistory(w http.ResponseWriter, r *http.Request) {
-	history, err := h.Session.ListHistory(r.Context())
+	actor := ActorFromContext(r.Context())
+	history, err := h.Session.ListHistory(r.Context(), actor)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list history")
 		return
