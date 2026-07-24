@@ -4,11 +4,22 @@ Go-сервер для игры «Детектив» на стандартном
 
 ## Запуск
 
+Скопируй `.env.example` в `.env` и пропиши переменные:
+
 ```bash
+cp .env.example .env
 go run ./cmd/server/
 ```
 
-Сервер стартует на порту из `PORT` (по умолчанию `8080`).
+Переменные окружения:
+
+| Переменная | По умолчанию | Описание |
+|---|---|---|
+| `PORT` | `8080` | Порт сервера |
+| `OPENROUTER_API_KEY` | — | API-ключ OpenRouter |
+| `OPENROUTER_MODEL` | `openai/gpt-4o-mini` | Модель для запросов |
+| `MONGO_URI` | `mongodb://localhost:27017` | Подключение к MongoDB |
+| `MONGO_DATABASE` | `detective_game` | Имя базы данных |
 
 ## Архитектура
 

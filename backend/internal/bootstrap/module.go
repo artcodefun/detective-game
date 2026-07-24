@@ -4,26 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	httplayer "github.com/artcodefun/detective-game/backend/internal/interfaces/http"
 )
 
 type Module struct {
-	Port     string
+	Config   Config
 	Adapters *Adapters
 	Commands *Commands
 	Queries  *Queries
 	Server   *httplayer.Server
 }
 
-func NewModule() *Module {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
+func NewModule(cfg Config) *Module {
 	adapters := NewAdapters()
 	commands := NewCommands(adapters)
 	queries := NewQueries(adapters)
@@ -42,12 +36,12 @@ func NewModule() *Module {
 		Chat:       queries.Chat,
 	}
 
-	addr := fmt.Sprintf(":%s", port)
+	addr := fmt.Sprintf(":%s", cfg.Port)
 	router := httplayer.NewRouter(handlers)
 	server := httplayer.NewServer(router, addr)
 
 	return &Module{
-		Port:     port,
+		Config:   cfg,
 		Adapters: adapters,
 		Commands: commands,
 		Queries:  queries,
@@ -56,7 +50,7 @@ func NewModule() *Module {
 }
 
 func (m *Module) Run(ctx context.Context) error {
-	log.Printf("Starting server on :%s", m.Port)
+	log.Printf("Starting server on :%s", m.Config.Port)
 
 	errCh := make(chan error, 1)
 	go func() {

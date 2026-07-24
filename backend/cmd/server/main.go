@@ -13,7 +13,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	module := bootstrap.NewModule()
+	cfg := bootstrap.LoadConfig()
+	module := bootstrap.NewModule(cfg)
 
 	if err := module.Run(ctx); err != nil {
 		log.Fatalf("Server exited with error: %v", err)
