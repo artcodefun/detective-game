@@ -2,7 +2,6 @@ package domain
 
 import "github.com/google/uuid"
 
-// CrimeType represents type of crime.
 type CrimeType string
 
 const (
@@ -15,22 +14,22 @@ const (
 )
 
 type Crime struct {
-	Type          CrimeType `json:"crime_type"`
-	Victim        string    `json:"victim"`
-	PerpetratorID uuid.UUID `json:"perpetrator_id"`
-	Motive        string    `json:"motive"`
-	Method        string    `json:"method"`
-	TimeOfCrime   string    `json:"time_of_crime"`
+	Type          CrimeType `json:"crime_type" bson:"crime_type"`
+	Victim        string    `json:"victim" bson:"victim"`
+	PerpetratorID uuid.UUID `json:"perpetrator_id" bson:"perpetrator_id"`
+	Motive        string    `json:"motive" bson:"motive"`
+	Method        string    `json:"method" bson:"method"`
+	TimeOfCrime   string    `json:"time_of_crime" bson:"time_of_crime"`
 }
 
 type TimelineEntry struct {
-	Time        string     `json:"time"`
-	Event       string     `json:"event"`
-	CharacterID *uuid.UUID `json:"character_id,omitempty"`
+	Time        string     `json:"time" bson:"time"`
+	Event       string     `json:"event" bson:"event"`
+	CharacterID *uuid.UUID `json:"character_id,omitempty" bson:"character_id,omitempty"`
 }
 
 type Timeline struct {
-	Entries []TimelineEntry `json:"entries"`
+	Entries []TimelineEntry `json:"entries" bson:"entries"`
 }
 
 type EvidenceType string
@@ -43,10 +42,10 @@ const (
 )
 
 type Evidence struct {
-	ID                  uuid.UUID    `json:"id"`
-	Name                string       `json:"name"`
-	Description         string       `json:"description"`
-	IconAsset           string       `json:"icon_asset"`
-	DetailedDescription string       `json:"detailed_description"`
-	Type                EvidenceType `json:"type"`
+	ID                  uuid.UUID    `json:"id" bson:"_id"`
+	Name                string       `json:"name" bson:"name"`
+	Description         string       `json:"description" bson:"description"`
+	IconAsset           string       `json:"icon_asset" bson:"icon_asset"`
+	DetailedDescription string       `json:"detailed_description" bson:"detailed_description"`
+	Type                EvidenceType `json:"type" bson:"type"`
 }

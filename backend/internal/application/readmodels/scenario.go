@@ -23,9 +23,9 @@ type Timeline struct {
 
 type Evidence struct {
 	ID                  uuid.UUID `json:"id"`
-	Name                string `json:"name"`
-	Description         string `json:"description"`
-	IconAsset           string `json:"icon_asset"`
-	DetailedDescription string `json:"detailed_description"`
-	Type                string `json:"type"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	IconAsset           string    `json:"icon_asset"`
+	DetailedDescription string    `json:"detailed_description"`
+	Type                string    `json:"type"`
 }

@@ -14,12 +14,12 @@ const (
 )
 
 type Interrogation struct {
-	ID          uuid.UUID          `json:"id"`
-	SessionID   uuid.UUID          `json:"session_id"`
-	CharacterID uuid.UUID          `json:"character_id"`
-	Phase       InterrogationPhase `json:"phase"`
-	CreatedAt   time.Time          `json:"created_at"`
-	CompletedAt *time.Time         `json:"completed_at,omitempty"`
+	ID          uuid.UUID          `json:"id" bson:"_id"`
+	SessionID   uuid.UUID          `json:"session_id" bson:"session_id"`
+	CharacterID uuid.UUID          `json:"character_id" bson:"character_id"`
+	Phase       InterrogationPhase `json:"phase" bson:"phase"`
+	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	CompletedAt *time.Time         `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
 }
 
 func NewInterrogation(sessionID, characterID uuid.UUID) *Interrogation {

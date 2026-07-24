@@ -3,13 +3,13 @@ package domain
 import "github.com/google/uuid"
 
 type CharacterPrototype struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Age         int    `json:"age"`
-	Profession  string `json:"profession"`
-	ImagePath   string `json:"image_path"`
-	Personality string `json:"personality"`
-	AudioToneID string `json:"audio_tone_id"`
+	ID          int    `json:"id" bson:"id"`
+	Name        string `json:"name" bson:"name"`
+	Age         int    `json:"age" bson:"age"`
+	Profession  string `json:"profession" bson:"profession"`
+	ImagePath   string `json:"image_path" bson:"image_path"`
+	Personality string `json:"personality" bson:"personality"`
+	AudioToneID string `json:"audio_tone_id" bson:"audio_tone_id"`
 }
 
 type TrustLevel string
@@ -22,28 +22,28 @@ const (
 )
 
 type Memory struct {
-	ID        uuid.UUID `json:"id"`
-	Content   string    `json:"content"`
-	IsTrue    bool      `json:"is_true"`
-	Timestamp string    `json:"timestamp"`
+	ID        uuid.UUID `json:"id" bson:"id"`
+	Content   string    `json:"content" bson:"content"`
+	IsTrue    bool      `json:"is_true" bson:"is_true"`
+	Timestamp string    `json:"timestamp" bson:"timestamp"`
 }
 
 type CharacterKnowledge struct {
-	KnownFacts   []string `json:"known_facts"`
-	PartialFacts []string `json:"partial_facts"`
-	FalseBeliefs []string `json:"false_beliefs"`
+	KnownFacts   []string `json:"known_facts" bson:"known_facts"`
+	PartialFacts []string `json:"partial_facts" bson:"partial_facts"`
+	FalseBeliefs []string `json:"false_beliefs" bson:"false_beliefs"`
 }
 
 type Character struct {
-	ID                      uuid.UUID          `json:"id"`
-	SessionID               uuid.UUID          `json:"session_id"`
-	Prototype               CharacterPrototype `json:"prototype"`
-	Knowledge               CharacterKnowledge `json:"knowledge"`
-	Secrets                 []string           `json:"secrets"`
-	Relationships           map[int]string     `json:"relationships"`
-	Memories                []Memory           `json:"memories"`
-	Trust                   int                `json:"trust"`
-	InterrogationsRemaining int                `json:"interrogations_remaining"`
+	ID                      uuid.UUID          `json:"id" bson:"_id"`
+	SessionID               uuid.UUID          `json:"session_id" bson:"session_id"`
+	Prototype               CharacterPrototype `json:"prototype" bson:"prototype"`
+	Knowledge               CharacterKnowledge `json:"knowledge" bson:"knowledge"`
+	Secrets                 []string           `json:"secrets" bson:"secrets"`
+	Relationships           map[string]string  `json:"relationships" bson:"relationships"`
+	Memories                []Memory           `json:"memories" bson:"memories"`
+	Trust                   int                `json:"trust" bson:"trust"`
+	InterrogationsRemaining int                `json:"interrogations_remaining" bson:"interrogations_remaining"`
 }
 
 const (

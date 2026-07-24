@@ -554,5 +554,3 @@ func (s *InMemoryStore) ListHistory(_ context.Context, userID uuid.UUID) ([]*rea
 	}
 	return items, nil
 }
-
-

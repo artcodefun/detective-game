@@ -37,7 +37,7 @@ type Character struct {
 	AudioToneID             string             `json:"audio_tone_id"`
 	Knowledge               CharacterKnowledge `json:"knowledge"`
 	Secrets                 []string           `json:"secrets"`
-	Relationships           map[int]string     `json:"relationships"`
+	Relationships           map[string]string  `json:"relationships"`
 	Memories                []Memory           `json:"memories"`
 	Trust                   int                `json:"trust"`
 	InterrogationsRemaining int                `json:"interrogations_remaining"`
