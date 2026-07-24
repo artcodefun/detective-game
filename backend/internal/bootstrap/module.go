@@ -18,7 +18,7 @@ type Module struct {
 }
 
 func NewModule(cfg Config) *Module {
-	adapters := NewAdapters()
+	adapters := NewAdapters(cfg)
 	commands := NewCommands(adapters)
 	queries := NewQueries(adapters)
 

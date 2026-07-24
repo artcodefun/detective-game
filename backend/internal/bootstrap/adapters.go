@@ -1,9 +1,16 @@
 package bootstrap
 
 import (
+	"context"
+	"log"
+	"time"
+
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/infrastructure/llm"
-	"github.com/artcodefun/detective-game/backend/internal/infrastructure/storage"
+	"github.com/artcodefun/detective-game/backend/internal/infrastructure/readstore"
+	"github.com/artcodefun/detective-game/backend/internal/infrastructure/repo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Adapters struct {
@@ -27,26 +34,43 @@ type Adapters struct {
 	Prototypes ports.CharacterPrototypeRepository
 }
 
-func NewAdapters() *Adapters {
-	store := storage.NewInMemoryStore()
-	return &Adapters{
-		Users:          store,
-		Sessions:       store,
-		Characters:     store,
-		Interrogations: store,
-		Chat:           store,
-		Evidence:       store,
-		Reports:        store,
-		Chronology:     store,
+func NewAdapters(cfg Config) *Adapters {
+	db := newDatabase(cfg.MongoURI, cfg.MongoDatabase)
 
-		ReadSessions: store,
-		ReadChars:    store,
-		ReadEvidence: store,
-		ReadReports:  store,
-		ReadChron:    store,
-		ReadChat:     store,
+	return &Adapters{
+		Users:          repo.NewUserRepo(db),
+		Sessions:       repo.NewSessionRepo(db),
+		Characters:     repo.NewCharacterRepo(db),
+		Interrogations: repo.NewInterrogationRepo(db),
+		Chat:           repo.NewChatRepo(db),
+		Evidence:       repo.NewEvidenceRepo(db),
+		Reports:        repo.NewReportRepo(db),
+		Chronology:     repo.NewChronologyRepo(db),
+
+		ReadSessions: readstore.NewSessionReadRepo(db),
+		ReadChars:    readstore.NewCharacterReadRepo(db),
+		ReadEvidence: readstore.NewEvidenceReadRepo(db),
+		ReadReports:  readstore.NewReportReadRepo(db),
+		ReadChron:    readstore.NewChronologyReadRepo(db),
+		ReadChat:     readstore.NewChatReadRepo(db),
 
 		LLM:        llm.NewMockLlmService(),
-		Prototypes: store,
+		Prototypes: repo.NewPrototypeRepo(db),
 	}
+}
+
+func newDatabase(uri, dbName string) *mongo.Database {
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
+	if err != nil {
+		log.Fatalf("mongo connect: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Fatalf("mongo ping: %v", err)
+	}
+
+	return client.Database(dbName)
 }

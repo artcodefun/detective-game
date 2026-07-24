@@ -426,10 +426,24 @@ func (h *Handlers) GetReport(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) SubmitReport(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
-	var report domain.FinalReport
-	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+	var body struct {
+		Who      string `json:"who"`
+		Why      string `json:"why"`
+		How      string `json:"how"`
+		When     string `json:"when"`
+		Evidence string `json:"evidence"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
+	}
+
+	report := domain.FinalReport{
+		Who:      body.Who,
+		Why:      body.Why,
+		How:      body.How,
+		When:     body.When,
+		Evidence: body.Evidence,
 	}
 
 	if err := h.Evaluation.SubmitReport(r.Context(), actor, report); err != nil {

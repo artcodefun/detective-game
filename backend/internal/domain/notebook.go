@@ -26,13 +26,13 @@ const (
 )
 
 type NotebookEntry struct {
-	ID          uuid.UUID         `json:"id" bson:"id"`
-	Type        NotebookEntryType `json:"type" bson:"type"`
-	CharacterID *uuid.UUID        `json:"character_id,omitempty" bson:"character_id,omitempty"`
-	Description string            `json:"description" bson:"description"`
-	UserTags    []NoteTag         `json:"user_tags" bson:"user_tags"`
-	UserNote    *string           `json:"user_note,omitempty" bson:"user_note,omitempty"`
-	Timestamp   time.Time         `json:"timestamp" bson:"timestamp"`
+	ID          uuid.UUID         `bson:"id"`
+	Type        NotebookEntryType `bson:"type"`
+	CharacterID *uuid.UUID        `bson:"character_id,omitempty"`
+	Description string            `bson:"description"`
+	UserTags    []NoteTag         `bson:"user_tags"`
+	UserNote    *string           `bson:"user_note,omitempty"`
+	Timestamp   time.Time         `bson:"timestamp"`
 }
 
 type ChronologyEventType string
@@ -47,11 +47,12 @@ const (
 )
 
 type ChronologyEntry struct {
-	ID        uuid.UUID           `json:"id" bson:"id"`
-	EventType ChronologyEventType `json:"event_type" bson:"event_type"`
-	Title     string              `json:"title" bson:"title"`
-	Timestamp time.Time           `json:"timestamp" bson:"timestamp"`
-	Details   []NotebookEntry     `json:"details" bson:"details"`
+	ID        uuid.UUID           `bson:"id"`
+	SessionID uuid.UUID           `bson:"session_id"`
+	EventType ChronologyEventType `bson:"event_type"`
+	Title     string              `bson:"title"`
+	Timestamp time.Time           `bson:"timestamp"`
+	Details   []NotebookEntry     `bson:"details"`
 }
 
 type ActionType string
@@ -75,10 +76,11 @@ func (t ActionType) Cost() int {
 }
 
 type ActionReport struct {
-	ID          uuid.UUID  `json:"id" bson:"_id"`
-	Type        ActionType `json:"type" bson:"type"`
-	Body        string     `json:"body" bson:"body"`
-	EvidenceID  *uuid.UUID `json:"evidence_id,omitempty" bson:"evidence_id,omitempty"`
-	CharacterID *uuid.UUID `json:"character_id,omitempty" bson:"character_id,omitempty"`
-	Timestamp   time.Time  `json:"timestamp" bson:"timestamp"`
+	ID          uuid.UUID  `bson:"_id"`
+	SessionID   uuid.UUID  `bson:"session_id"`
+	Type        ActionType `bson:"type"`
+	Body        string     `bson:"body"`
+	EvidenceID  *uuid.UUID `bson:"evidence_id,omitempty"`
+	CharacterID *uuid.UUID `bson:"character_id,omitempty"`
+	Timestamp   time.Time  `bson:"timestamp"`
 }

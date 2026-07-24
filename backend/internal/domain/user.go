@@ -7,8 +7,8 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id" bson:"_id"`
-	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	ID        uuid.UUID `bson:"_id"`
+	CreatedAt time.Time `bson:"created_at"`
 }
 
 func NewUser() User {

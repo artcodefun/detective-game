@@ -14,22 +14,22 @@ const (
 )
 
 type Crime struct {
-	Type          CrimeType `json:"crime_type" bson:"crime_type"`
-	Victim        string    `json:"victim" bson:"victim"`
-	PerpetratorID uuid.UUID `json:"perpetrator_id" bson:"perpetrator_id"`
-	Motive        string    `json:"motive" bson:"motive"`
-	Method        string    `json:"method" bson:"method"`
-	TimeOfCrime   string    `json:"time_of_crime" bson:"time_of_crime"`
+	Type          CrimeType `bson:"crime_type"`
+	Victim        string    `bson:"victim"`
+	PerpetratorID uuid.UUID `bson:"perpetrator_id"`
+	Motive        string    `bson:"motive"`
+	Method        string    `bson:"method"`
+	TimeOfCrime   string    `bson:"time_of_crime"`
 }
 
 type TimelineEntry struct {
-	Time        string     `json:"time" bson:"time"`
-	Event       string     `json:"event" bson:"event"`
-	CharacterID *uuid.UUID `json:"character_id,omitempty" bson:"character_id,omitempty"`
+	Time        string     `bson:"time"`
+	Event       string     `bson:"event"`
+	CharacterID *uuid.UUID `bson:"character_id,omitempty"`
 }
 
 type Timeline struct {
-	Entries []TimelineEntry `json:"entries" bson:"entries"`
+	Entries []TimelineEntry `bson:"entries"`
 }
 
 type EvidenceType string
@@ -42,10 +42,11 @@ const (
 )
 
 type Evidence struct {
-	ID                  uuid.UUID    `json:"id" bson:"_id"`
-	Name                string       `json:"name" bson:"name"`
-	Description         string       `json:"description" bson:"description"`
-	IconAsset           string       `json:"icon_asset" bson:"icon_asset"`
-	DetailedDescription string       `json:"detailed_description" bson:"detailed_description"`
-	Type                EvidenceType `json:"type" bson:"type"`
+	ID                  uuid.UUID    `bson:"_id"`
+	SessionID           uuid.UUID    `bson:"session_id"`
+	Name                string       `bson:"name"`
+	Description         string       `bson:"description"`
+	IconAsset           string       `bson:"icon_asset"`
+	DetailedDescription string       `bson:"detailed_description"`
+	Type                EvidenceType `bson:"type"`
 }
