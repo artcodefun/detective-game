@@ -77,15 +77,39 @@ func EvidenceFromDomain(ev *domain.Evidence) *Evidence {
 }
 
 func ActionReportFromDomain(r *domain.ActionReport) *ActionReport {
+	title := actionTypeTitle(r.Type)
+	desc := r.Body
+	if len(desc) > 80 {
+		desc = desc[:80] + "..."
+	}
 	return &ActionReport{
 		ID:          r.ID,
-		Title:       r.Title,
-		Description: r.Description,
+		Type:        string(r.Type),
+		Title:       title,
+		Description: desc,
 		Body:        r.Body,
 		EvidenceID:  r.EvidenceID,
 		CharacterID: r.CharacterID,
 		Timestamp:   r.Timestamp,
 	}
+}
+
+func actionTypeTitle(t domain.ActionType) string {
+	switch t {
+	case domain.ActionTypeDNAAnalysis:
+		return "Анализ ДНК"
+	case domain.ActionTypeFingerprints:
+		return "Отпечатки пальцев"
+	case domain.ActionTypeAlibiCheck:
+		return "Проверка алиби"
+	case domain.ActionTypeCameraReview:
+		return "Записи с камер"
+	case domain.ActionTypeCallHistory:
+		return "История звонков"
+	case domain.ActionTypeTransactionCheck:
+		return "Банковские операции"
+	}
+	return string(t)
 }
 
 func ChronologyEntryFromDomain(c *domain.ChronologyEntry) *ChronologyEntry {

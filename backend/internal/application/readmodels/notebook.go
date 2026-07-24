@@ -26,6 +26,7 @@ type NotebookEntry struct {
 
 type ActionReport struct {
 	ID          uuid.UUID  `json:"id"`
+	Type        string     `json:"type"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
 	Body        string     `json:"body"`

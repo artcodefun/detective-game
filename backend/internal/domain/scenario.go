@@ -14,24 +14,6 @@ const (
 	CrimeTypeBlackmail  CrimeType = "blackmail"
 )
 
-func (t CrimeType) Label() string {
-	switch t {
-	case CrimeTypeMurder:
-		return "убийство"
-	case CrimeTypeTheft:
-		return "кража"
-	case CrimeTypeFraud:
-		return "мошенничество"
-	case CrimeTypeArson:
-		return "поджог"
-	case CrimeTypeKidnapping:
-		return "похищение"
-	case CrimeTypeBlackmail:
-		return "шантаж"
-	}
-	return string(t)
-}
-
 type Crime struct {
 	Type          CrimeType `json:"crime_type"`
 	Victim        string    `json:"victim"`
@@ -59,20 +41,6 @@ const (
 	EvidenceTypeDocument  EvidenceType = "document"
 	EvidenceTypeTestimony EvidenceType = "testimony"
 )
-
-func (t EvidenceType) Label() string {
-	switch t {
-	case EvidenceTypePhysical:
-		return "вещественное"
-	case EvidenceTypeDigital:
-		return "цифровое"
-	case EvidenceTypeDocument:
-		return "документ"
-	case EvidenceTypeTestimony:
-		return "показания"
-	}
-	return string(t)
-}
 
 type Evidence struct {
 	ID                  uuid.UUID    `json:"id"`

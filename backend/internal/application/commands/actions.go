@@ -21,7 +21,7 @@ func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionRep
 }
 
 type actionRequest struct {
-	name        string
+	kind        domain.ActionType
 	evidenceID  *uuid.UUID
 	characterID *uuid.UUID
 	alibiText   *string
@@ -33,8 +33,7 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, err
 	}
 
-	cost := actionCost(req.name)
-	if !session.SpendActionPoints(cost) {
+	if !session.SpendActionPoints(req.kind.Cost()) {
 		return uuid.Nil, application.NewAppError(application.KindConflict, "not_enough_action_points")
 	}
 
@@ -42,21 +41,14 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, err
 	}
 
-	body, err := c.LLM.RunAction(ctx, req.name, req.evidenceID, req.characterID, req.alibiText)
+	body, err := c.LLM.RunAction(ctx, string(req.kind), req.evidenceID, req.characterID, req.alibiText)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	title := actionTitle(req.name)
-	desc := body
-	if len(desc) > 80 {
-		desc = desc[:80] + "..."
-	}
-
 	report := domain.ActionReport{
 		ID:          uuid.New(),
-		Title:       title,
-		Description: desc,
+		Type:        req.kind,
 		Body:        body,
 		EvidenceID:  req.evidenceID,
 		CharacterID: req.characterID,
@@ -71,52 +63,25 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 }
 
 func (c *ActionCommands) DNAAnalysis(ctx context.Context, actor application.Actor, evidenceID uuid.UUID) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "dna_analysis", evidenceID: &evidenceID})
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeDNAAnalysis, evidenceID: &evidenceID})
 }
 
 func (c *ActionCommands) FingerprintsCheck(ctx context.Context, actor application.Actor, evidenceID uuid.UUID) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "fingerprints", evidenceID: &evidenceID})
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeFingerprints, evidenceID: &evidenceID})
 }
 
 func (c *ActionCommands) AlibiCheck(ctx context.Context, actor application.Actor, characterID uuid.UUID, alibiText string) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "alibi_check", characterID: &characterID, alibiText: &alibiText})
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeAlibiCheck, characterID: &characterID, alibiText: &alibiText})
 }
 
 func (c *ActionCommands) CameraReview(ctx context.Context, actor application.Actor) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "camera_review"})
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeCameraReview})
 }
 
 func (c *ActionCommands) CallHistory(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "call_history", characterID: &characterID})
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeCallHistory, characterID: &characterID})
 }
 
 func (c *ActionCommands) TransactionCheck(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
-	return c.executeAction(ctx, actor, actionRequest{name: "transaction_check", characterID: &characterID})
-}
-
-func actionCost(name string) int {
-	switch name {
-	case "dna_analysis", "fingerprints", "alibi_check":
-		return 1
-	default:
-		return 2
-	}
-}
-
-func actionTitle(name string) string {
-	switch name {
-	case "dna_analysis":
-		return "Анализ ДНК"
-	case "fingerprints":
-		return "Отпечатки пальцев"
-	case "alibi_check":
-		return "Проверка алиби"
-	case "camera_review":
-		return "Записи с камер"
-	case "call_history":
-		return "История звонков"
-	case "transaction_check":
-		return "Банковские операции"
-	}
-	return name
+	return c.executeAction(ctx, actor, actionRequest{kind: domain.ActionTypeTransactionCheck, characterID: &characterID})
 }
