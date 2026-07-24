@@ -37,13 +37,7 @@ type CharacterKnowledge struct {
 type Character struct {
 	ID                      uuid.UUID          `json:"id"`
 	SessionID               uuid.UUID          `json:"session_id"`
-	PrototypeID             int                `json:"prototype_id"`
-	Name                    string             `json:"name"`
-	Age                     int                `json:"age"`
-	Profession              string             `json:"profession"`
-	ImagePath               string             `json:"image_path"`
-	Personality             string             `json:"personality"`
-	AudioToneID             string             `json:"audio_tone_id"`
+	Prototype               CharacterPrototype `json:"prototype"`
 	Knowledge               CharacterKnowledge `json:"knowledge"`
 	Secrets                 []string           `json:"secrets"`
 	Relationships           map[int]string     `json:"relationships"`
@@ -62,13 +56,7 @@ func NewCharacter(prototype CharacterPrototype, sessionID uuid.UUID) Character {
 	return Character{
 		ID:                      uuid.New(),
 		SessionID:               sessionID,
-		PrototypeID:             prototype.ID,
-		Name:                    prototype.Name,
-		Age:                     prototype.Age,
-		Profession:              prototype.Profession,
-		ImagePath:               prototype.ImagePath,
-		Personality:             prototype.Personality,
-		AudioToneID:             prototype.AudioToneID,
+		Prototype:               prototype,
 		Trust:                   50,
 		InterrogationsRemaining: MaxInterrogations,
 	}

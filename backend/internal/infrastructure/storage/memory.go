@@ -133,7 +133,7 @@ func (s *InMemoryStore) Update(_ context.Context, session *domain.Session) error
 func (s *InMemoryStore) CreateCharacter(_ context.Context, character *domain.Character) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := charKey(character.SessionID, character.PrototypeID)
+	key := charKey(character.SessionID, character.Prototype.ID)
 	s.characters[key] = character
 	return nil
 }
@@ -177,7 +177,7 @@ func (s *InMemoryStore) FindCharactersBySession(_ context.Context, sessionID uui
 func (s *InMemoryStore) UpdateCharacter(_ context.Context, character *domain.Character) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := charKey(character.SessionID, character.PrototypeID)
+	key := charKey(character.SessionID, character.Prototype.ID)
 	s.characters[key] = character
 	return nil
 }

@@ -77,10 +77,10 @@ var scenarioEvidence = []domain.Evidence{
 func makeCharacters() []domain.Character {
 	chars := []domain.Character{
 		{
-			PrototypeID: 1, Name: "Иван Петров", Age: 55, Profession: "дворецкий",
-			ImagePath:   "assets/characters/ivan_petrov.png",
-			Personality: "Консервативный, преданный семье, скрытный. Говорит медленно, с расстановкой. Предпочитает отмалчиваться, но если задеть за живое — срывается.",
-			AudioToneID: "tone_male_deep",
+			Prototype: domain.CharacterPrototype{ID: 1, Name: "Иван Петров", Age: 55, Profession: "дворецкий",
+				ImagePath:   "assets/characters/ivan_petrov.png",
+				Personality: "Консервативный, преданный семье, скрытный. Говорит медленно, с расстановкой. Предпочитает отмалчиваться, но если задеть за живое — срывается.",
+				AudioToneID: "tone_male_deep"},
 			Knowledge: domain.CharacterKnowledge{
 				KnownFacts:   []string{"Я принёс виски в кабинет в 21:15, Ланг был жив и раздражён", "В 21:00 я видел, как Браун вышел из кабинета очень нервным"},
 				PartialFacts: []string{"Кажется, Ланг с кем-то ссорился перед смертью — доносились голоса"},
@@ -93,10 +93,10 @@ func makeCharacters() []domain.Character {
 			InterrogationsRemaining: 3,
 		},
 		{
-			PrototypeID: 2, Name: "Елена Соколова", Age: 42, Profession: "домохозяйка",
-			ImagePath:   "assets/characters/elena_sokolova.png",
-			Personality: "Эмоциональная, вспыльчивая, но ранимая. Говорит быстро, часто перебивает. Хочет казаться безразличной, но на деле очень переживает.",
-			AudioToneID: "tone_female_high",
+			Prototype: domain.CharacterPrototype{ID: 2, Name: "Елена Соколова", Age: 42, Profession: "домохозяйка",
+				ImagePath:   "assets/characters/elena_sokolova.png",
+				Personality: "Эмоциональная, вспыльчивая, но ранимая. Говорит быстро, часто перебивает. Хочет казаться безразличной, но на деле очень переживает.",
+				AudioToneID: "tone_female_high"},
 			Knowledge: domain.CharacterKnowledge{
 				KnownFacts:   []string{"Я слышала крик из кабинета около 22:00", "Муж собирался разводиться со мной"},
 				PartialFacts: []string{"Мне кажется, у мужа были проблемы с бизнесом"},
@@ -109,10 +109,10 @@ func makeCharacters() []domain.Character {
 			InterrogationsRemaining: 3,
 		},
 		{
-			PrototypeID: 3, Name: "Майкл Браун", Age: 48, Profession: "деловой партнёр",
-			ImagePath:   "assets/characters/michael_brown.png",
-			Personality: "Харизматичный, уверенный в себе, умело манипулирует. Говорит спокойно, с лёгкой усмешкой. Всегда контролирует эмоции.",
-			AudioToneID: "tone_male_mid",
+			Prototype: domain.CharacterPrototype{ID: 3, Name: "Майкл Браун", Age: 48, Profession: "деловой партнёр",
+				ImagePath:   "assets/characters/michael_brown.png",
+				Personality: "Харизматичный, уверенный в себе, умело манипулирует. Говорит спокойно, с лёгкой усмешкой. Всегда контролирует эмоции.",
+				AudioToneID: "tone_male_mid"},
 			Knowledge: domain.CharacterKnowledge{
 				KnownFacts:   []string{"Я был в кабинете с Лангом с 20:30 до 21:00", "Ланг обнаружил недостачу в отчётах"},
 				PartialFacts: []string{"Иван должен Лангу деньги, я предлагал его уволить"},
@@ -125,10 +125,10 @@ func makeCharacters() []domain.Character {
 			InterrogationsRemaining: 3,
 		},
 		{
-			PrototypeID: 4, Name: "Анна Коваль", Age: 29, Profession: "горничная",
-			ImagePath:   "assets/characters/anna_koval.png",
-			Personality: "Застенчивая, тревожная, боится потерять работу. Говорит тихо, запинается. Старается быть незаметной, но глаза выдают страх.",
-			AudioToneID: "tone_female_soft",
+			Prototype: domain.CharacterPrototype{ID: 4, Name: "Анна Коваль", Age: 29, Profession: "горничная",
+				ImagePath:   "assets/characters/anna_koval.png",
+				Personality: "Застенчивая, тревожная, боится потерять работу. Говорит тихо, запинается. Старается быть незаметной, но глаза выдают страх.",
+				AudioToneID: "tone_female_soft"},
 			Knowledge: domain.CharacterKnowledge{
 				KnownFacts:   []string{"Я нашла тело в 22:15, когда зашла убрать кабинет", "В 21:30 я видела, как Орлов шёл к кабинету"},
 				PartialFacts: []string{"Слышала, что у Ланга и Соколовой были проблемы"},
@@ -141,10 +141,10 @@ func makeCharacters() []domain.Character {
 			InterrogationsRemaining: 3,
 		},
 		{
-			PrototypeID: 5, Name: "Дмитрий Орлов", Age: 61, Profession: "адвокат",
-			ImagePath:   "assets/characters/dmitry_orlov.png",
-			Personality: "Циничный, расчётливый, за словом в карман не лезет. Говорит чётко, рублеными фразами. Привык контролировать ситуацию.",
-			AudioToneID: "tone_male_raspy",
+			Prototype: domain.CharacterPrototype{ID: 5, Name: "Дмитрий Орлов", Age: 61, Profession: "адвокат",
+				ImagePath:   "assets/characters/dmitry_orlov.png",
+				Personality: "Циничный, расчётливый, за словом в карман не лезет. Говорит чётко, рублеными фразами. Привык контролировать ситуацию.",
+				AudioToneID: "tone_male_raspy"},
 			Knowledge: domain.CharacterKnowledge{
 				KnownFacts:   []string{"Я подходил к кабинету в 21:45, дверь была заперта", "У меня были деловые отношения с Лангом"},
 				PartialFacts: []string{"Ланг кого-то шантажировал, судя по тому, что я нашёл в документах"},
@@ -193,7 +193,7 @@ func (m *MockLlmService) GenerateScenario(_ context.Context, characters []domain
 
 func (m *MockLlmService) RespondInInterrogation(_ context.Context, character domain.Character, playerMessage string) (*ports.LlmInterrogationResponse, error) {
 	msg := strings.ToLower(playerMessage)
-	charID := character.PrototypeID
+	charID := character.Prototype.ID
 
 	isAggressive := strings.Contains(msg, "убил") || strings.Contains(msg, "лжёшь") || strings.Contains(msg, "вы врёте") || strings.Contains(msg, "докажите")
 	isKind := strings.Contains(msg, "пожалуйста") || strings.Contains(msg, "расскажите") || strings.Contains(msg, "помогите")
@@ -219,19 +219,19 @@ func (m *MockLlmService) genericResponse(char *domain.Character) *ports.LlmInter
 	switch {
 	case char.Trust < 25:
 		return &ports.LlmInterrogationResponse{
-			Answer:        fmt.Sprintf("%s: Я не хочу больше говорить. Вызовите моего адвоката.", char.Name),
+			Answer:        fmt.Sprintf("%s: Я не хочу больше говорить. Вызовите моего адвоката.", char.Prototype.Name),
 			AttitudeDelta: -5,
 			Statements:    []string{"Отказался отвечать на вопросы"},
 		}
 	case char.Trust < 50:
 		return &ports.LlmInterrogationResponse{
-			Answer:        fmt.Sprintf("%s: Я уже говорил полиции всё, что знаю. У меня нет времени на эти игры.", char.Name),
+			Answer:        fmt.Sprintf("%s: Я уже говорил полиции всё, что знаю. У меня нет времени на эти игры.", char.Prototype.Name),
 			AttitudeDelta: -3,
 			Statements:    []string{"Повторил, что уже говорил полиции"},
 		}
 	default:
 		return &ports.LlmInterrogationResponse{
-			Answer:        fmt.Sprintf("%s: Я ничего не скрываю. Задавайте ваши вопросы, я отвечу, если смогу.", char.Name),
+			Answer:        fmt.Sprintf("%s: Я ничего не скрываю. Задавайте ваши вопросы, я отвечу, если смогу.", char.Prototype.Name),
 			AttitudeDelta: 0,
 			Statements:    []string{"Готов отвечать на вопросы"},
 		}
