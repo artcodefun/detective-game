@@ -14,6 +14,8 @@ import (
 )
 
 type Adapters struct {
+	mongoClient *mongo.Client
+
 	Users          ports.UserRepository
 	Sessions       ports.SessionRepository
 	Characters     ports.CharacterRepository
@@ -35,9 +37,11 @@ type Adapters struct {
 }
 
 func NewAdapters(cfg Config) *Adapters {
-	db := newDatabase(cfg.MongoURI, cfg.MongoDatabase)
+	client, db := newDatabase(cfg.MongoURI, cfg.MongoDatabase)
 
 	return &Adapters{
+		mongoClient: client,
+
 		Users:          repo.NewUserRepo(db),
 		Sessions:       repo.NewSessionRepo(db),
 		Characters:     repo.NewCharacterRepo(db),
@@ -59,7 +63,11 @@ func NewAdapters(cfg Config) *Adapters {
 	}
 }
 
-func newDatabase(uri, dbName string) *mongo.Database {
+func (a *Adapters) Shutdown(ctx context.Context) error {
+	return a.mongoClient.Disconnect(ctx)
+}
+
+func newDatabase(uri, dbName string) (*mongo.Client, *mongo.Database) {
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		log.Fatalf("mongo connect: %v", err)
@@ -72,5 +80,5 @@ func newDatabase(uri, dbName string) *mongo.Database {
 		log.Fatalf("mongo ping: %v", err)
 	}
 
-	return client.Database(dbName)
+	return client, client.Database(dbName)
 }

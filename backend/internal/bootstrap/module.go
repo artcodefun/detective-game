@@ -59,20 +59,26 @@ func (m *Module) Run(ctx context.Context) error {
 		}
 	}()
 
+	var runErr error
 	select {
 	case <-ctx.Done():
-		log.Println("Shutting down server...")
 	case err := <-errCh:
-		return err
+		runErr = err
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	log.Println("Shutting down...")
+
 	if err := m.Server.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("server shutdown error: %w", err)
+		log.Printf("server shutdown error: %v", err)
 	}
 
-	log.Println("Server stopped cleanly")
-	return nil
+	if err := m.Adapters.Shutdown(shutdownCtx); err != nil {
+		log.Printf("mongo shutdown error: %v", err)
+	}
+
+	log.Println("Stopped")
+	return runErr
 }
