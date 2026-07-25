@@ -38,6 +38,9 @@ type Adapters struct {
 func NewAdapters(cfg Config) *Adapters {
 	client, db := newDatabase(cfg.MongoURI, cfg.MongoDatabase)
 
+	llmService := llm.NewOpenRouterClient(cfg.OpenRouterKey, cfg.OpenRouterModel)
+	log.Printf("using OpenRouter, model=%s", cfg.OpenRouterModel)
+
 	return &Adapters{
 		mongoClient: client,
 
@@ -57,8 +60,7 @@ func NewAdapters(cfg Config) *Adapters {
 		ReadChron:    readstore.NewChronologyReadRepo(db),
 		ReadChat:     readstore.NewChatReadRepo(db),
 
-		LLM:        llm.NewMockLlmService(),
-		Prototypes: repo.NewPrototypeRepo(db),
+		LLM: llmService,
 	}
 }
 
