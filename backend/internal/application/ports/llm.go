@@ -29,7 +29,7 @@ type LlmFeedbackResponse struct {
 }
 
 type LlmService interface {
-	GenerateScenario(ctx context.Context, characters []domain.CharacterPrototype) (*ScenarioOutput, error)
+	GenerateScenario(ctx context.Context) (*ScenarioOutput, error)
 	RespondInInterrogation(ctx context.Context, character domain.Character, playerMessage string) (*LlmInterrogationResponse, error)
 	EvaluateReport(ctx context.Context, playerReport domain.FinalReport, groundTruth domain.Crime) (*LlmFeedbackResponse, error)
 	RunAction(ctx context.Context, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error)

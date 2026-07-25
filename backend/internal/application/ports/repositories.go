@@ -21,7 +21,6 @@ type SessionRepository interface {
 
 type CharacterRepository interface {
 	CreateCharacter(ctx context.Context, character *domain.Character) error
-	FindCharacterBySessionAndID(ctx context.Context, sessionID uuid.UUID, prototypeID int) (*domain.Character, error)
 	FindCharacterByID(ctx context.Context, sessionID uuid.UUID, characterID uuid.UUID) (*domain.Character, error)
 	FindCharactersBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.Character, error)
 	UpdateCharacter(ctx context.Context, character *domain.Character) error
@@ -56,10 +55,4 @@ type ChronologyRepository interface {
 	AppendChronologyEntry(ctx context.Context, sessionID uuid.UUID, entry *domain.ChronologyEntry) error
 	FindChronologyBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.ChronologyEntry, error)
 	UpdateChronologyEntry(ctx context.Context, sessionID uuid.UUID, chronologyID uuid.UUID, entryID uuid.UUID, tags []domain.NoteTag, note *string) error
-}
-
-type CharacterPrototypeRepository interface {
-	GetAll(ctx context.Context) ([]domain.CharacterPrototype, error)
-	GetRandom(ctx context.Context, count int) ([]domain.CharacterPrototype, error)
-	ByID(ctx context.Context, id int) (*domain.CharacterPrototype, error)
 }

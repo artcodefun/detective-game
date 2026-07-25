@@ -23,15 +23,6 @@ func (r *CharacterRepo) CreateCharacter(ctx context.Context, character *domain.C
 	return err
 }
 
-func (r *CharacterRepo) FindCharacterBySessionAndID(ctx context.Context, sessionID uuid.UUID, prototypeID int) (*domain.Character, error) {
-	var c domain.Character
-	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "prototype.id": prototypeID}).Decode(&c)
-	if err != nil {
-		return nil, fmt.Errorf("find character: %w", err)
-	}
-	return &c, nil
-}
-
 func (r *CharacterRepo) FindCharacterByID(ctx context.Context, sessionID uuid.UUID, characterID uuid.UUID) (*domain.Character, error) {
 	var c domain.Character
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": characterID}).Decode(&c)

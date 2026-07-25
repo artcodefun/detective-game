@@ -32,8 +32,7 @@ type Adapters struct {
 	ReadChron    ports.ChronologyReadRepository
 	ReadChat     ports.ChatMessageReadRepository
 
-	LLM        ports.LlmService
-	Prototypes ports.CharacterPrototypeRepository
+	LLM ports.LlmService
 }
 
 func NewAdapters(cfg Config) *Adapters {

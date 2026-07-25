@@ -2,15 +2,12 @@ package domain
 
 import "github.com/google/uuid"
 
-type CharacterPrototype struct {
-	ID          int    `bson:"id"`
-	Name        string `bson:"name"`
-	Age         int    `bson:"age"`
-	Profession  string `bson:"profession"`
-	ImagePath   string `bson:"image_path"`
-	Personality string `bson:"personality"`
-	AudioToneID string `bson:"audio_tone_id"`
-}
+type Gender string
+
+const (
+	GenderMale   Gender = "male"
+	GenderFemale Gender = "female"
+)
 
 type TrustLevel string
 
@@ -37,7 +34,11 @@ type CharacterKnowledge struct {
 type Character struct {
 	ID                      uuid.UUID          `bson:"_id"`
 	SessionID               uuid.UUID          `bson:"session_id"`
-	Prototype               CharacterPrototype `bson:"prototype"`
+	Name                    string             `bson:"name"`
+	Age                     int                `bson:"age"`
+	Profession              string             `bson:"profession"`
+	Personality             string             `bson:"personality"`
+	Gender                  Gender             `bson:"gender"`
 	Knowledge               CharacterKnowledge `bson:"knowledge"`
 	Secrets                 []string           `bson:"secrets"`
 	Relationships           map[string]string  `bson:"relationships"`
@@ -51,16 +52,6 @@ const (
 	MaxTrust          = 100
 	MaxInterrogations = 3
 )
-
-func NewCharacter(prototype CharacterPrototype, sessionID uuid.UUID) Character {
-	return Character{
-		ID:                      uuid.New(),
-		SessionID:               sessionID,
-		Prototype:               prototype,
-		Trust:                   50,
-		InterrogationsRemaining: MaxInterrogations,
-	}
-}
 
 func (c *Character) TrustLevel() TrustLevel {
 	switch {

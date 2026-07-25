@@ -15,11 +15,10 @@ type ScenarioCommands struct {
 	LLM        ports.LlmService
 	Characters ports.CharacterRepository
 	Evidence   ports.EvidenceRepository
-	Prototypes ports.CharacterPrototypeRepository
 }
 
-func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, p ports.CharacterPrototypeRepository) *ScenarioCommands {
-	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Prototypes: p}
+func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository) *ScenarioCommands {
+	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev}
 }
 
 func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
@@ -32,12 +31,7 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 		}
 	}
 
-	prototypes, err := c.Prototypes.GetRandom(ctx, 5)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	output, err := c.LLM.GenerateScenario(ctx, prototypes)
+	output, err := c.LLM.GenerateScenario(ctx)
 	if err != nil {
 		return uuid.Nil, err
 	}

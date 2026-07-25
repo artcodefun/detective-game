@@ -2,16 +2,6 @@ package readmodels
 
 import "github.com/google/uuid"
 
-type CharacterPrototype struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Age         int    `json:"age"`
-	Profession  string `json:"profession"`
-	ImagePath   string `json:"image_path"`
-	Personality string `json:"personality"`
-	AudioToneID string `json:"audio_tone_id"`
-}
-
 type Memory struct {
 	ID        uuid.UUID `json:"id"`
 	Content   string    `json:"content"`
@@ -28,13 +18,11 @@ type CharacterKnowledge struct {
 type Character struct {
 	ID                      uuid.UUID          `json:"id"`
 	SessionID               uuid.UUID          `json:"session_id"`
-	PrototypeID             int                `json:"prototype_id"`
 	Name                    string             `json:"name"`
 	Age                     int                `json:"age"`
 	Profession              string             `json:"profession"`
-	ImagePath               string             `json:"image_path"`
 	Personality             string             `json:"personality"`
-	AudioToneID             string             `json:"audio_tone_id"`
+	Gender                  string             `json:"gender"`
 	Knowledge               CharacterKnowledge `json:"knowledge"`
 	Secrets                 []string           `json:"secrets"`
 	Relationships           map[string]string  `json:"relationships"`
