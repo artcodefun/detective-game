@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
 import '../models/game_state.dart';
+import '../services/api_service.dart';
 import 'actions_screen.dart';
 import 'case_file_screen.dart';
 import 'interrogation_screen.dart';
@@ -15,12 +16,16 @@ class DeskScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionCubit>().state!;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Дело №${session.id}'),
+        title: Text('Дело №${session.sessionId}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            context.read<SessionCubit>().clear();
+            Navigator.pop(context);
+          },
         ),
         actions: [
           Padding(
@@ -28,17 +33,11 @@ class DeskScreen extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.search,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.search, size: 18, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 4),
                 Text(
                   '${session.actionPoints}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -55,23 +54,18 @@ class DeskScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
-                    child:                     _DeskItem(
+                    child: _DeskItem(
                       icon: Icons.folder,
                       label: 'Дело',
                       subtitle: 'факты и улики',
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CaseFileScreen(),
-                          ),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CaseFileScreen()));
                       },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child:                     _DeskItem(
+                    child: _DeskItem(
                       icon: Icons.phone,
                       label: 'Телефон',
                       subtitle: 'подозреваемые',
@@ -83,19 +77,14 @@ class DeskScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-                  child: _DeskItem(
-                    icon: Icons.book,
-                    label: 'Блокнот',
-                    subtitle: 'хронология и заметки',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotebookScreen(),
-                        ),
-                      );
-                    },
-                  ),
+              child: _DeskItem(
+                icon: Icons.book,
+                label: 'Блокнот',
+                subtitle: 'хронология и заметки',
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NotebookScreen()));
+                },
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -108,12 +97,7 @@ class DeskScreen extends StatelessWidget {
                       label: 'Действия',
                       subtitle: 'анализы и запросы',
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ActionsScreen(),
-                          ),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ActionsScreen()));
                       },
                     ),
                   ),
@@ -124,12 +108,7 @@ class DeskScreen extends StatelessWidget {
                       label: 'Отчёт',
                       subtitle: 'финальная версия',
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ReportScreen(),
-                          ),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
                       },
                     ),
                   ),
@@ -146,9 +125,7 @@ class DeskScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _PhoneBookSheet(),
     );
   }
@@ -160,12 +137,7 @@ class _DeskItem extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _DeskItem({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _DeskItem({required this.icon, required this.label, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -185,13 +157,9 @@ class _DeskItem extends StatelessWidget {
             children: [
               Icon(icon, size: 36, color: colorScheme.primary),
               const SizedBox(height: 8),
-              Text(label, style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              )),
+              Text(label, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 2),
-              Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withAlpha(120),
-              )),
+              Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120))),
             ],
           ),
         ),
@@ -200,14 +168,26 @@ class _DeskItem extends StatelessWidget {
   }
 }
 
-class _PhoneBookSheet extends StatelessWidget {
+class _PhoneBookSheet extends StatefulWidget {
   const _PhoneBookSheet();
+
+  @override
+  State<_PhoneBookSheet> createState() => _PhoneBookSheetState();
+}
+
+class _PhoneBookSheetState extends State<_PhoneBookSheet> {
+  late Future<List<Character>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = context.read<ApiService>().listCharacters();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final session = context.read<SessionCubit>().state!;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -228,28 +208,56 @@ class _PhoneBookSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Телефонная книга',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Телефонная книга', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
                 'Вызовите подозреваемого на допрос',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withAlpha(120),
-                ),
+                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView.separated(
-                  controller: scrollController,
-                  itemCount: session.characters.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
-                    final char = session.characters[index];
-                    return _SuspectTile(characterState: char);
+                child: FutureBuilder<List<Character>>(
+                  future: _future,
+                  builder: (_, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Ошибка загрузки', style: theme.textTheme.bodyMedium));
+                    }
+                    final chars = snapshot.data!;
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: chars.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, index) {
+                        final c = chars[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: colorScheme.primaryContainer,
+                            child: Text(
+                              c.name[0],
+                              style: TextStyle(color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(c.name),
+                          subtitle: Text('Допросов: ${c.interrogationsRemaining}/3'),
+                          trailing: IconButton(
+                            icon: Icon(Icons.call, color: colorScheme.primary),
+                            onPressed:
+                                c.canInterrogate
+                                    ? () {
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => InterrogationScreen(characterId: c.id)),
+                                      );
+                                    }
+                                    : null,
+                          ),
+                        );
+                      },
+                    );
                   },
                 ),
               ),
@@ -260,50 +268,3 @@ class _PhoneBookSheet extends StatelessWidget {
     );
   }
 }
-
-class _SuspectTile extends StatelessWidget {
-  final CharacterState characterState;
-
-  const _SuspectTile({
-    required this.characterState,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final char = characterState.base;
-    final remaining = characterState.interrogationsRemaining;
-
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: colorScheme.primaryContainer,
-        child: Text(
-          char.name[0],
-          style: TextStyle(
-            color: colorScheme.onPrimaryContainer,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      title: Text(char.name),
-      subtitle: Text('Допросов: $remaining/3'),
-      trailing: IconButton(
-        icon: Icon(Icons.call, color: colorScheme.primary),
-        onPressed: remaining > 0
-            ? () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => InterrogationScreen(
-                      characterState: characterState,
-                    ),
-                  ),
-                );
-              }
-            : null,
-      ),
-    );
-  }
-}
-

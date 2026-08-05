@@ -1,9 +1,11 @@
+import 'report.dart';
+
 enum CrimeType { murder, theft, fraud, arson, kidnapping, blackmail }
 
 enum EvidenceType { physical, digital, document, testimony }
 
 class Crime {
-  final CrimeType type;
+  final String crimeType;
   final String victim;
   final String perpetratorId;
   final String motive;
@@ -11,7 +13,7 @@ class Crime {
   final String timeOfCrime;
 
   const Crime({
-    required this.type,
+    required this.crimeType,
     required this.victim,
     required this.perpetratorId,
     required this.motive,
@@ -20,7 +22,7 @@ class Crime {
   });
 
   String get typeLabel {
-    switch (type) {
+    switch (CrimeType.values.firstWhere((e) => e.name == crimeType, orElse: () => CrimeType.murder)) {
       case CrimeType.murder:
         return 'убийство';
       case CrimeType.theft:
@@ -36,26 +38,9 @@ class Crime {
     }
   }
 
-  static CrimeType crimeTypeFromString(String value) {
-    switch (value) {
-      case 'theft':
-        return CrimeType.theft;
-      case 'fraud':
-        return CrimeType.fraud;
-      case 'arson':
-        return CrimeType.arson;
-      case 'kidnapping':
-        return CrimeType.kidnapping;
-      case 'blackmail':
-        return CrimeType.blackmail;
-      default:
-        return CrimeType.murder;
-    }
-  }
-
   factory Crime.fromJson(Map<String, dynamic> json) {
     return Crime(
-      type: crimeTypeFromString(json['crime_type'] as String),
+      crimeType: json['crime_type'] as String,
       victim: json['victim'] as String,
       perpetratorId: json['perpetrator_id'] as String,
       motive: json['motive'] as String,
@@ -64,16 +49,14 @@ class Crime {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'crime_type': type.name,
-      'victim': victim,
-      'perpetrator_id': perpetratorId,
-      'motive': motive,
-      'method': method,
-      'time_of_crime': timeOfCrime,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'crime_type': crimeType,
+    'victim': victim,
+    'perpetrator_id': perpetratorId,
+    'motive': motive,
+    'method': method,
+    'time_of_crime': timeOfCrime,
+  };
 }
 
 class TimelineEntry {
@@ -81,11 +64,7 @@ class TimelineEntry {
   final String event;
   final String? characterId;
 
-  const TimelineEntry({
-    required this.time,
-    required this.event,
-    this.characterId,
-  });
+  const TimelineEntry({required this.time, required this.event, this.characterId});
 
   factory TimelineEntry.fromJson(Map<String, dynamic> json) {
     return TimelineEntry(
@@ -95,13 +74,7 @@ class TimelineEntry {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'time': time,
-      'event': event,
-      'character_id': characterId,
-    };
-  }
+  Map<String, dynamic> toJson() => {'time': time, 'event': event, if (characterId != null) 'character_id': characterId};
 }
 
 class Timeline {
@@ -110,16 +83,10 @@ class Timeline {
   const Timeline({required this.entries});
 
   factory Timeline.fromJson(List<dynamic> json) {
-    return Timeline(
-      entries: json
-          .map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
+    return Timeline(entries: json.map((e) => TimelineEntry.fromJson(e as Map<String, dynamic>)).toList());
   }
 
-  List<Map<String, dynamic>> toJson() {
-    return entries.map((e) => e.toJson()).toList();
-  }
+  List<Map<String, dynamic>> toJson() => entries.map((e) => e.toJson()).toList();
 }
 
 class Evidence {
@@ -128,9 +95,7 @@ class Evidence {
   final String description;
   final String iconAsset;
   final String detailedDescription;
-  final EvidenceType type;
-  final bool analyzed;
-  final String? analysisResult;
+  final String type;
 
   const Evidence({
     required this.id,
@@ -139,36 +104,11 @@ class Evidence {
     required this.iconAsset,
     required this.detailedDescription,
     required this.type,
-    this.analyzed = false,
-    this.analysisResult,
   });
 
-  Evidence copyWith({
-    String? id,
-    String? name,
-    String? description,
-    String? iconAsset,
-    String? detailedDescription,
-    EvidenceType? type,
-    bool? analyzed,
-    String? analysisResult,
-    bool clearAnalysisResult = false,
-  }) {
-    return Evidence(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      iconAsset: iconAsset ?? this.iconAsset,
-      detailedDescription: detailedDescription ?? this.detailedDescription,
-      type: type ?? this.type,
-      analyzed: analyzed ?? this.analyzed,
-      analysisResult:
-          clearAnalysisResult ? null : analysisResult ?? this.analysisResult,
-    );
-  }
-
   String get typeLabel {
-    switch (type) {
+    final t = EvidenceType.values.firstWhere((e) => e.name == type, orElse: () => EvidenceType.physical);
+    switch (t) {
       case EvidenceType.physical:
         return 'вещественное';
       case EvidenceType.digital:
@@ -180,19 +120,6 @@ class Evidence {
     }
   }
 
-  static EvidenceType evidenceTypeFromString(String value) {
-    switch (value) {
-      case 'digital':
-        return EvidenceType.digital;
-      case 'document':
-        return EvidenceType.document;
-      case 'testimony':
-        return EvidenceType.testimony;
-      default:
-        return EvidenceType.physical;
-    }
-  }
-
   factory Evidence.fromJson(Map<String, dynamic> json) {
     return Evidence(
       id: json['id'] as String,
@@ -200,22 +127,101 @@ class Evidence {
       description: json['description'] as String,
       iconAsset: json['icon_asset'] as String,
       detailedDescription: json['detailed_description'] as String,
-      type: evidenceTypeFromString(json['type'] as String),
-      analyzed: json['analyzed'] as bool? ?? false,
-      analysisResult: json['analysis_result'] as String?,
+      type: json['type'] as String,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'icon_asset': iconAsset,
-      'detailed_description': detailedDescription,
-      'type': type.name,
-      'analyzed': analyzed,
-      'analysis_result': analysisResult,
-    };
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'icon_asset': iconAsset,
+    'detailed_description': detailedDescription,
+    'type': type,
+  };
+}
+
+class Session {
+  final String id;
+  final String crimeType;
+  final String victim;
+  final String perpetratorId;
+  final String motive;
+  final String method;
+  final String timeOfCrime;
+  final Timeline? timeline;
+  final String caseName;
+  final String caseBrief;
+  final int actionPoints;
+  final String phase;
+  final GameResult? gameResult;
+  final DateTime createdAt;
+
+  const Session({
+    required this.id,
+    this.crimeType = '',
+    this.victim = '',
+    this.perpetratorId = '',
+    this.motive = '',
+    this.method = '',
+    this.timeOfCrime = '',
+    this.timeline,
+    this.caseName = '',
+    this.caseBrief = '',
+    this.actionPoints = 5,
+    this.phase = 'idle',
+    this.gameResult,
+    required this.createdAt,
+  });
+
+  Crime get crime => Crime(
+    crimeType: crimeType,
+    victim: victim,
+    perpetratorId: perpetratorId,
+    motive: motive,
+    method: method,
+    timeOfCrime: timeOfCrime,
+  );
+
+  factory Session.fromJson(Map<String, dynamic> json) {
+    final crimeJson = json['crime'] as Map<String, dynamic>?;
+    return Session(
+      id: json['id'] as String,
+      crimeType: crimeJson?['crime_type'] as String? ?? '',
+      victim: crimeJson?['victim'] as String? ?? '',
+      perpetratorId: crimeJson?['perpetrator_id'] as String? ?? '',
+      motive: crimeJson?['motive'] as String? ?? '',
+      method: crimeJson?['method'] as String? ?? '',
+      timeOfCrime: crimeJson?['time_of_crime'] as String? ?? '',
+      timeline:
+          json['timeline'] != null
+              ? Timeline.fromJson((json['timeline'] as Map<String, dynamic>)['entries'] as List<dynamic>)
+              : null,
+      caseName: json['case_name'] as String? ?? '',
+      caseBrief: json['case_brief'] as String? ?? '',
+      actionPoints: json['action_points'] as int? ?? 5,
+      phase: json['phase'] as String? ?? 'idle',
+      gameResult: json['game_result'] != null ? GameResult.fromJson(json['game_result'] as Map<String, dynamic>) : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'crime': {
+      'crime_type': crimeType,
+      'victim': victim,
+      'perpetrator_id': perpetratorId,
+      'motive': motive,
+      'method': method,
+      'time_of_crime': timeOfCrime,
+    },
+    if (timeline != null) 'timeline': {'entries': timeline!.toJson()},
+    'case_name': caseName,
+    'case_brief': caseBrief,
+    'action_points': actionPoints,
+    'phase': phase,
+    if (gameResult != null) 'game_result': gameResult!.toJson(),
+    'created_at': createdAt.toIso8601String(),
+  };
 }

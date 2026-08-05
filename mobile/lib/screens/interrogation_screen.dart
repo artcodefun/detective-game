@@ -4,26 +4,22 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../blocs/session_cubit.dart';
-import '../models/character.dart';
-import '../models/chronology_entry.dart';
 import '../models/game_state.dart';
-import '../models/notebook.dart';
-import '../services/mock_llm_service.dart';
+import '../services/api_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/mood_indicator.dart';
 
 class InterrogationScreen extends StatefulWidget {
-  final CharacterState characterState;
+  final String characterId;
 
-  const InterrogationScreen({super.key, required this.characterState});
+  const InterrogationScreen({super.key, required this.characterId});
 
   @override
   State<InterrogationScreen> createState() => _InterrogationScreenState();
 }
 
 class _InterrogationScreenState extends State<InterrogationScreen> {
-  final _llm = MockLlmService();
-  final _messages = <InterrogationMessage>[];
+  final _messages = <ChatMessage>[];
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   final _speech = stt.SpeechToText();
@@ -33,16 +29,16 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   String _speechBaseText = '';
   String _speechFinalized = '';
   String _speechPartial = '';
-  String? _activeChronologyId;
-  late CharacterState _character;
-  late GameSession _session;
+  String? _interId;
+  Character? _character;
+
+  ApiService get _api => context.read<ApiService>();
 
   @override
   void initState() {
     super.initState();
-    _character = widget.characterState;
-    _session = context.read<SessionCubit>().state!;
     _initSpeech();
+    _startInterrogation();
   }
 
   @override
@@ -53,11 +49,23 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     super.dispose();
   }
 
+  Future<void> _startInterrogation() async {
+    try {
+      final inter = await _api.createInterrogation(widget.characterId);
+      _interId = inter.id;
+      final character = await _api.getCharacter(widget.characterId);
+      if (mounted) setState(() => _character = character);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        Navigator.pop(context);
+      }
+    }
+  }
+
   Future<void> _initSpeech() async {
     await _speech.initialize(onStatus: _onSpeechStatus);
-    if (mounted) {
-      setState(() => _speechInitialized = true);
-    }
+    if (mounted) setState(() => _speechInitialized = true);
   }
 
   Future<void> _toggleListening() async {
@@ -111,7 +119,6 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
 
   void _onSpeechResult(SpeechRecognitionResult result) {
     if (!_isListening) return;
-
     final words = result.recognizedWords;
     if (words.isEmpty) {
       if (_speechPartial.isNotEmpty) {
@@ -123,7 +130,6 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
       }
       return;
     }
-
     if (result.finalResult) {
       final sep = _speechFinalized.isEmpty ? '' : ' ';
       _speechFinalized += sep + words;
@@ -131,7 +137,6 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     } else {
       _speechPartial = words;
     }
-
     final parts = <String>[];
     if (_speechBaseText.isNotEmpty) parts.add(_speechBaseText);
     if (_speechFinalized.isNotEmpty) parts.add(_speechFinalized);
@@ -156,60 +161,44 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     }
 
     final text = _textController.text.trim();
-    if (text.isEmpty || _isWaiting) return;
+    if (text.isEmpty || _isWaiting || _interId == null) return;
 
     _textController.clear();
 
-    final playerMsg = InterrogationMessage(sender: 'Вы', text: text, timestamp: DateTime.now());
-
     setState(() {
-      _messages.add(playerMsg);
+      _messages.add(
+        ChatMessage(
+          id: '',
+          sessionId: '',
+          interrogationId: _interId!,
+          fromUser: true,
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+      );
       _isWaiting = true;
     });
     _scrollToBottom();
 
-    final response = await _llm.respondInInterrogation(characterState: _character, playerMessage: text);
-
-    final characterMsg = InterrogationMessage(
-      sender: _character.base.name,
-      text: response.answer,
-      timestamp: DateTime.now(),
-    );
-
-    setState(() {
-      _messages.add(characterMsg);
-      _character = _character.applyAttitudeDelta(response.attitudeDelta).addMessage(playerMsg).addMessage(characterMsg);
-      _isWaiting = false;
-    });
-
-    _saveStatements(response.statements);
-    if (!mounted) return;
-    context.read<SessionCubit>().update(_session);
-    _scrollToBottom();
-  }
-
-  void _saveStatements(List<String> statements) {
-    if (statements.isEmpty) return;
-    final entries = statements.map((s) => NotebookEntry(
-      id: 'note_${DateTime.now().millisecondsSinceEpoch}_${s.hashCode}',
-      type: NotebookEntryType.statement,
-      characterId: _character.base.id,
-      description: s,
-      timestamp: DateTime.now(),
-    )).toList();
-
-    if (_activeChronologyId == null) {
-      final chron = ChronologyEntry(
-        id: 'chron_${DateTime.now().millisecondsSinceEpoch}',
-        eventType: ChronologyEventType.interrogation,
-        title: 'Допрос (${_character.base.name})',
-        timestamp: DateTime.now(),
-        details: entries,
-      );
-      _session = _session.addChronologyEntry(chron);
-      _activeChronologyId = chron.id;
-    } else {
-      _session = _session.addDetailsToChronology(_activeChronologyId!, entries);
+    try {
+      final msg = await _api.addInterrogationMessage(interId: _interId!, message: text);
+      if (mounted) {
+        setState(() {
+          _messages.add(msg);
+          if (_character != null && msg.attitudeDelta != 0) {
+            _character = _character!.copyWith(
+              trust: (_character!.trust + msg.attitudeDelta).clamp(Character.minTrust, Character.maxTrust),
+            );
+          }
+          _isWaiting = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isWaiting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      }
     }
   }
 
@@ -225,12 +214,31 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     });
   }
 
+  Future<void> _closeInterrogation() async {
+    if (_interId != null) {
+      final cubit = context.read<SessionCubit>();
+      try {
+        await _api.completeInterrogation(_interId!);
+        cubit.refreshSession();
+      } catch (_) {}
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final char = _character.base;
-    final mood = _character.trustLevel;
+
+    if (_character == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Допрос')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final char = _character!;
+    final mood = char.trustLevel;
 
     return Scaffold(
       appBar: AppBar(
@@ -249,18 +257,14 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'Завершить допрос',
-          ),
+          IconButton(icon: const Icon(Icons.close), onPressed: _closeInterrogation, tooltip: 'Завершить допрос'),
         ],
       ),
       body: Column(
         children: [
           _buildCharacterHeader(theme, colorScheme, char, mood),
           const Divider(height: 1),
-          Expanded(child: _buildChatList(theme)),
+          Expanded(child: _buildChatList(theme, char.name)),
           const Divider(height: 1),
           _buildInputBar(theme, colorScheme),
         ],
@@ -268,7 +272,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     );
   }
 
-  Widget _buildCharacterHeader(ThemeData theme, ColorScheme colorScheme, CharacterData char, TrustLevel mood) {
+  Widget _buildCharacterHeader(ThemeData theme, ColorScheme colorScheme, Character char, TrustLevel mood) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -299,7 +303,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     );
   }
 
-  Widget _buildChatList(ThemeData theme) {
+  Widget _buildChatList(ThemeData theme, String characterName) {
     if (_messages.isEmpty) {
       return Center(
         child: Padding(
@@ -331,9 +335,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
         }
 
         final msg = _messages[index];
-        final isPlayer = msg.sender == 'Вы';
-
-        return ChatBubble(text: msg.text, isPlayer: isPlayer, senderName: msg.sender);
+        return ChatBubble(text: msg.text, isPlayer: msg.fromUser, senderName: msg.fromUser ? 'Вы' : characterName);
       },
     );
   }

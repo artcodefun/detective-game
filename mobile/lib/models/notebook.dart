@@ -1,12 +1,6 @@
 enum NoteTag { strange, suspicious, lie, key }
 
-enum NotebookEntryType {
-  statement,
-  analysis,
-  alibiCheck,
-  cameraRequest,
-  transactionRequest,
-}
+enum NotebookEntryType { statement, analysis, alibiCheck, cameraRequest, transactionRequest }
 
 class NotebookEntry {
   final String id;
@@ -44,18 +38,20 @@ class NotebookEntry {
 
   String get tagsLabel {
     if (userTags.isEmpty) return '';
-    return userTags.map((t) {
-      switch (t) {
-        case NoteTag.strange:
-          return 'странно';
-        case NoteTag.suspicious:
-          return 'подозрительно';
-        case NoteTag.lie:
-          return 'ложь';
-        case NoteTag.key:
-          return 'ключевое';
-      }
-    }).join(', ');
+    return userTags
+        .map((t) {
+          switch (t) {
+            case NoteTag.strange:
+              return 'странно';
+            case NoteTag.suspicious:
+              return 'подозрительно';
+            case NoteTag.lie:
+              return 'ложь';
+            case NoteTag.key:
+              return 'ключевое';
+          }
+        })
+        .join(', ');
   }
 
   NotebookEntry copyWith({
@@ -101,11 +97,10 @@ class NotebookEntry {
       type: entryTypeFromString(json['type'] as String),
       characterId: json['character_id'] as String?,
       description: json['description'] as String,
-      userTags: json['user_tags'] != null
-          ? (json['user_tags'] as List<dynamic>)
-              .map((e) => NoteTag.values.byName(e as String))
-              .toList()
-          : [],
+      userTags:
+          json['user_tags'] != null
+              ? (json['user_tags'] as List<dynamic>).map((e) => NoteTag.values.byName(e as String)).toList()
+              : [],
       userNote: json['user_note'] as String?,
       timestamp: DateTime.parse(json['timestamp'] as String),
     );

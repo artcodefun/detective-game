@@ -1,13 +1,6 @@
 import 'notebook.dart';
 
-enum ChronologyEventType {
-  caseStarted,
-  interrogation,
-  labAnalysis,
-  alibiCheck,
-  cameraReview,
-  transactionCheck,
-}
+enum ChronologyEventType { caseStarted, interrogation, labAnalysis, alibiCheck, cameraReview, transactionCheck }
 
 class ChronologyEntry {
   final String id;
@@ -80,9 +73,8 @@ class ChronologyEntry {
       eventType: _eventTypeFromString(json['event_type'] as String),
       title: json['title'] as String,
       timestamp: DateTime.parse(json['timestamp'] as String),
-      details: (json['details'] as List<dynamic>?)
-              ?.map((e) => NotebookEntry.fromJson(e as Map<String, dynamic>))
-              .toList() ??
+      details:
+          (json['details'] as List<dynamic>?)?.map((e) => NotebookEntry.fromJson(e as Map<String, dynamic>)).toList() ??
           [],
     );
   }

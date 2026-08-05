@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../blocs/session_cubit.dart';
 import '../models/report.dart';
 import 'title_screen.dart';
 
@@ -18,21 +20,23 @@ class ResultsScreen extends StatelessWidget {
     final pct = (breakdown.accuracy * 100).toInt();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Результаты'),
-        automaticallyImplyLeading: !showHomeButton,
-      ),
+      appBar: AppBar(title: const Text('Результаты'), automaticallyImplyLeading: !showHomeButton),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             const SizedBox(height: 24),
             Icon(
-              pct >= 80 ? Icons.verified : pct >= 40 ? Icons.rate_review : Icons.sentiment_dissatisfied,
-              size: 80,
-              color: pct >= 80
-                  ? Colors.green
+              pct >= 80
+                  ? Icons.verified
                   : pct >= 40
+                  ? Icons.rate_review
+                  : Icons.sentiment_dissatisfied,
+              size: 80,
+              color:
+                  pct >= 80
+                      ? Colors.green
+                      : pct >= 40
                       ? Colors.orange
                       : Colors.red,
             ),
@@ -42,10 +46,7 @@ class ResultsScreen extends StatelessWidget {
               style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
             ),
             const SizedBox(height: 8),
-            Text(
-              'точность',
-              style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withAlpha(150)),
-            ),
+            Text('точность', style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withAlpha(150))),
             const SizedBox(height: 8),
             Text(
               result.narrativeFeedback,
@@ -65,16 +66,11 @@ class ResultsScreen extends StatelessWidget {
               const Divider(),
             ],
             const SizedBox(height: 16),
-            _ResultRow(label: 'Преступник', correct: breakdown.whoCorrect,
-                detail: result.breakdownDetails['who']),
-            _ResultRow(label: 'Мотив', correct: breakdown.whyCorrect,
-                detail: result.breakdownDetails['why']),
-            _ResultRow(label: 'Способ', correct: breakdown.howCorrect,
-                detail: result.breakdownDetails['how']),
-            _ResultRow(label: 'Время', correct: breakdown.whenCorrect,
-                detail: result.breakdownDetails['when']),
-            _ResultRow(label: 'Улики', correct: breakdown.evidenceCorrect,
-                detail: result.breakdownDetails['evidence']),
+            _ResultRow(label: 'Преступник', correct: breakdown.whoCorrect, detail: result.breakdownDetails['who']),
+            _ResultRow(label: 'Мотив', correct: breakdown.whyCorrect, detail: result.breakdownDetails['why']),
+            _ResultRow(label: 'Способ', correct: breakdown.howCorrect, detail: result.breakdownDetails['how']),
+            _ResultRow(label: 'Время', correct: breakdown.whenCorrect, detail: result.breakdownDetails['when']),
+            _ResultRow(label: 'Улики', correct: breakdown.evidenceCorrect, detail: result.breakdownDetails['evidence']),
             if (showHomeButton) ...[
               const SizedBox(height: 32),
               SizedBox(
@@ -82,6 +78,7 @@ class ResultsScreen extends StatelessWidget {
                 height: 48,
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    context.read<SessionCubit>().clear();
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (_) => const TitleScreen()),
@@ -134,7 +131,10 @@ class _ResultRow extends StatelessWidget {
             const SizedBox(height: 2),
             Padding(
               padding: const EdgeInsets.only(left: 28),
-              child: Text(detail!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120))),
+              child: Text(
+                detail!,
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120)),
+              ),
             ),
           ],
         ],
@@ -166,7 +166,10 @@ class _AnswerRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-                Text(answer, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(160))),
+                Text(
+                  answer,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(160)),
+                ),
               ],
             ),
           ),

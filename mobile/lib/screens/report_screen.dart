@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../blocs/session_cubit.dart';
-import '../models/report.dart';
-import '../services/mock_llm_service.dart';
+import '../services/api_service.dart';
 import 'results_screen.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -19,7 +17,6 @@ class _ReportScreenState extends State<ReportScreen> {
   final _howController = TextEditingController();
   final _whenController = TextEditingController();
   final _evidenceController = TextEditingController();
-  final _llm = MockLlmService();
   bool _submitting = false;
 
   @override
@@ -43,41 +40,26 @@ class _ReportScreenState extends State<ReportScreen> {
     if (!_allFilled || _submitting) return;
     setState(() => _submitting = true);
 
-    final report = FinalReport(
-      who: _whoController.text.trim(),
-      why: _whyController.text.trim(),
-      how: _howController.text.trim(),
-      when: _whenController.text.trim(),
-      evidence: _evidenceController.text.trim(),
-    );
+    try {
+      final result = await context.read<ApiService>().submitReport(
+        who: _whoController.text.trim(),
+        why: _whyController.text.trim(),
+        how: _howController.text.trim(),
+        when: _whenController.text.trim(),
+        evidence: _evidenceController.text.trim(),
+      );
 
-    final session = context.read<SessionCubit>().state!;
-    final feedback = await _llm.evaluateReport(
-      playerReport: report,
-      groundTruth: session.crime,
-    );
+      if (!mounted) return;
 
-    if (!mounted) return;
-
-    final breakdown = ScoreBreakdown(
-      whoCorrect: feedback.breakdownDetails['who']?.startsWith('Верно') ?? false,
-      whyCorrect: feedback.breakdownDetails['why']?.startsWith('Правильно') ?? false,
-      howCorrect: feedback.breakdownDetails['how']?.startsWith('Да') ?? false,
-      whenCorrect: feedback.breakdownDetails['when']?.startsWith('Время указано верно') ?? false,
-      evidenceCorrect: feedback.breakdownDetails['evidence']?.startsWith('Хорошо') ?? false,
-    );
-
-    final result = GameResult(
-      playerReport: report,
-      breakdown: breakdown,
-      narrativeFeedback: feedback.narrativeFeedback,
-      breakdownDetails: feedback.breakdownDetails,
-    );
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ResultsScreen(result: result)),
-    );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ResultsScreen(result: result, playerReport: result.playerReport)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+    }
   }
 
   @override
@@ -93,26 +75,40 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             Text('Изложите вашу версию событий', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('Заполните все разделы', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120))),
+            Text(
+              'Заполните все разделы',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120)),
+            ),
             const SizedBox(height: 20),
             _Field(label: 'Кто преступник?', hint: 'Майкл Браун...', controller: _whoController, onChanged: _onChanged),
             const SizedBox(height: 12),
             _Field(label: 'Почему?', hint: 'Хищение средств...', controller: _whyController, onChanged: _onChanged),
             const SizedBox(height: 12),
-            _Field(label: 'Каким способом?', hint: 'Отравление цианидом...', controller: _howController, onChanged: _onChanged),
+            _Field(
+              label: 'Каким способом?',
+              hint: 'Отравление цианидом...',
+              controller: _howController,
+              onChanged: _onChanged,
+            ),
             const SizedBox(height: 12),
             _Field(label: 'В какое время?', hint: 'Около 22:15...', controller: _whenController, onChanged: _onChanged),
             const SizedBox(height: 12),
-            _Field(label: 'Какие улики это подтверждают?', hint: 'Бокал с цианидом, фин. документы...', controller: _evidenceController, onChanged: _onChanged),
+            _Field(
+              label: 'Какие улики это подтверждают?',
+              hint: 'Бокал с цианидом, фин. документы...',
+              controller: _evidenceController,
+              onChanged: _onChanged,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: _allFilled && !_submitting ? _submit : null,
-                icon: _submitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send),
+                icon:
+                    _submitting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send),
                 label: Text(_submitting ? 'Проверяем...' : 'Отправить отчёт'),
               ),
             ),

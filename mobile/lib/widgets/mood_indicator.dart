@@ -12,25 +12,13 @@ class MoodIndicator extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _MoodDot(
-          filled: trustLevel == TrustLevel.open,
-          color: Colors.green,
-        ),
+        _MoodDot(filled: trustLevel == TrustLevel.open, color: Colors.green),
         const SizedBox(width: 4),
-        _MoodDot(
-          filled: trustLevel == TrustLevel.reserved,
-          color: Colors.yellow,
-        ),
+        _MoodDot(filled: trustLevel == TrustLevel.reserved, color: Colors.yellow),
         const SizedBox(width: 4),
-        _MoodDot(
-          filled: trustLevel == TrustLevel.tense,
-          color: Colors.orange,
-        ),
+        _MoodDot(filled: trustLevel == TrustLevel.tense, color: Colors.orange),
         const SizedBox(width: 4),
-        _MoodDot(
-          filled: trustLevel == TrustLevel.closed,
-          color: Colors.red,
-        ),
+        _MoodDot(filled: trustLevel == TrustLevel.closed, color: Colors.red),
       ],
     );
   }
@@ -73,10 +61,7 @@ class _MoodDot extends StatelessWidget {
     return Container(
       width: 10,
       height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? color : color.withAlpha(60),
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: filled ? color : color.withAlpha(60)),
     );
   }
 }

@@ -4,11 +4,7 @@ class DocumentScreen extends StatelessWidget {
   final String title;
   final String body;
 
-  const DocumentScreen({
-    super.key,
-    required this.title,
-    required this.body,
-  });
+  const DocumentScreen({super.key, required this.title, required this.body});
 
   @override
   Widget build(BuildContext context) {
@@ -22,35 +18,15 @@ class DocumentScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(20),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
                 const SizedBox(height: 16),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                    height: 1.6,
-                  ),
-                ),
+                Text(body, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.6)),
               ],
             ),
           ),

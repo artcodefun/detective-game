@@ -5,12 +5,7 @@ class ChatBubble extends StatelessWidget {
   final bool isPlayer;
   final String senderName;
 
-  const ChatBubble({
-    super.key,
-    required this.text,
-    required this.isPlayer,
-    required this.senderName,
-  });
+  const ChatBubble({super.key, required this.text, required this.isPlayer, required this.senderName});
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +14,7 @@ class ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment:
-            isPlayer ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isPlayer ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isPlayer) ...[
@@ -29,11 +23,7 @@ class ChatBubble extends StatelessWidget {
               backgroundColor: colorScheme.primaryContainer,
               child: Text(
                 senderName[0],
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 12, color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 8),
@@ -42,9 +32,7 @@ class ChatBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isPlayer
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest,
+                color: isPlayer ? colorScheme.primary : colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -52,14 +40,7 @@ class ChatBubble extends StatelessWidget {
                   bottomRight: Radius.circular(isPlayer ? 4 : 16),
                 ),
               ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: isPlayer
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurface,
-                ),
-              ),
+              child: Text(text, style: TextStyle(color: isPlayer ? colorScheme.onPrimary : colorScheme.onSurface)),
             ),
           ),
           if (isPlayer) const SizedBox(width: 8),

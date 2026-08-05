@@ -19,18 +19,11 @@ class TitleScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.search,
-                size: 80,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.search, size: 80, color: colorScheme.primary),
               const SizedBox(height: 16),
               Text(
                 'Детектив',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+                style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 2),
               ),
               const SizedBox(height: 4),
               Text(
@@ -41,22 +34,13 @@ class TitleScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 48),
-              _TitleButton(
-                label: 'Новое дело',
-                icon: Icons.folder_open,
-                onPressed: () => _startNewCase(context),
-              ),
+              _TitleButton(label: 'Новое дело', icon: Icons.folder_open, onPressed: () => _startNewCase(context)),
               const SizedBox(height: 12),
               _TitleButton(
                 label: 'Предыдущие дела',
                 icon: Icons.history,
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PreviousCasesScreen(),
-                    ),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PreviousCasesScreen()));
                 },
               ),
               const SizedBox(height: 12),
@@ -64,12 +48,7 @@ class TitleScreen extends StatelessWidget {
                 label: 'Настройки',
                 icon: Icons.settings,
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SettingsScreen(),
-                    ),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                 },
               ),
             ],
@@ -80,10 +59,7 @@ class TitleScreen extends StatelessWidget {
   }
 
   void _startNewCase(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const LoadingScreen()),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const LoadingScreen()));
   }
 }
 
@@ -92,11 +68,7 @@ class _TitleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _TitleButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
+  const _TitleButton({required this.label, required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +84,7 @@ class _TitleButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           foregroundColor: colorScheme.onPrimaryContainer,
           backgroundColor: colorScheme.primaryContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 16),
         ),
       ),

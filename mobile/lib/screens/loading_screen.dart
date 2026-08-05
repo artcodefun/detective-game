@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
-import '../models/chronology_entry.dart';
-import '../services/mock_llm_service.dart';
-import '../services/scenario_generator.dart';
+import '../services/api_service.dart';
 import 'desk_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
@@ -15,8 +13,8 @@ class LoadingScreen extends StatefulWidget {
 }
 
 class _LoadingScreenState extends State<LoadingScreen> {
-  final _generator = ScenarioGenerator(MockLlmService());
   String _status = 'Готовим сценарий...';
+  bool _error = false;
 
   @override
   void initState() {
@@ -25,26 +23,24 @@ class _LoadingScreenState extends State<LoadingScreen> {
   }
 
   Future<void> _generate() async {
-    setState(() => _status = 'Собираем улики, опрашиваем свидетелей...');
-
-    final characters = MockLlmService.characterPool;
-    final session = await _generator.generate(characters);
-
-    if (!mounted) return;
-
-    final started = ChronologyEntry(
-      id: 'chron_start_${DateTime.now().millisecondsSinceEpoch}',
-      eventType: ChronologyEventType.caseStarted,
-      title: 'Дело №${session.id} открыто',
-      timestamp: DateTime.now(),
-    );
-    final enriched = session.addChronologyEntry(started);
-
-    context.read<SessionCubit>().newGame(enriched);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DeskScreen()),
-    );
+    try {
+      setState(() => _status = 'Собираем улики, опрашиваем свидетелей...');
+      await context.read<SessionCubit>().startNewGame();
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = true;
+        _status = 'Ошибка: ${e.message}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = true;
+        _status = 'Не удалось подключиться к серверу';
+      });
+    }
   }
 
   @override
@@ -55,10 +51,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Новое дело'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
       ),
       body: Center(
         child: Padding(
@@ -67,24 +60,35 @@ class _LoadingScreenState extends State<LoadingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.auto_awesome,
+                _error ? Icons.error_outline : Icons.auto_awesome,
                 size: 64,
-                color: colorScheme.primary,
+                color: _error ? colorScheme.error : colorScheme.primary,
               ),
               const SizedBox(height: 24),
-              Text(
-                _status,
-                style: theme.textTheme.titleMedium,
-              ),
+              Text(_status, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
               const SizedBox(height: 24),
-              const LinearProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                'Пожалуйста, подождите...',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withAlpha(120),
+              if (!_error) ...[
+                const LinearProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Пожалуйста, подождите...',
+                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
                 ),
-              ),
+              ],
+              if (_error) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _error = false;
+                      _status = 'Повторная попытка...';
+                    });
+                    _generate();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Повторить'),
+                ),
+              ],
             ],
           ),
         ),
