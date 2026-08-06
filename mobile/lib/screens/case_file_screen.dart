@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models/action_report.dart';
 import '../models/scenario.dart';
@@ -14,7 +15,10 @@ class CaseFileScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Дело'), bottom: const TabBar(tabs: [Tab(text: 'Факты'), Tab(text: 'Улики')])),
+        appBar: AppBar(
+          title: const Text('Дело'),
+          bottom: const TabBar(tabs: [Tab(text: 'Факты'), Tab(text: 'Улики')]),
+        ),
         body: const TabBarView(children: [_FactsTab(), _EvidenceTab()]),
       ),
     );
@@ -23,89 +27,56 @@ class CaseFileScreen extends StatelessWidget {
 
 class _FactsTab extends StatefulWidget {
   const _FactsTab();
-
   @override
   State<_FactsTab> createState() => _FactsTabState();
 }
 
 class _FactsTabState extends State<_FactsTab> {
-  late Future<_FactsData> _future;
+  late Future<String> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = _fetchFacts();
-  }
-
-  Future<_FactsData> _fetchFacts() async {
-    final api = context.read<ApiService>();
-    final session = await api.getCurrentSession();
-    final chars = await api.listCharacters();
-    final suspectNames = chars.map((c) => '${c.name} — ${c.profession}').toList();
-    return _FactsData(session: session, suspectNames: suspectNames);
+    _future = context.read<ApiService>().getCurrentSession().then((s) => s.caseBrief);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_FactsData>(
+    return FutureBuilder<String>(
       future: _future,
       builder: (_, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
-          return Center(child: Text('Ошибка: ${snapshot.error}'));
-        }
-        final data = snapshot.data!;
-        final s = data.session;
-        final buffer =
-            StringBuffer()
-              ..writeln('Тип преступления: ${s.crime.typeLabel}')
-              ..writeln()
-              ..writeln('Жертва: ${s.crime.victim}')
-              ..writeln()
-              ..writeln('Время: ${s.crime.timeOfCrime}')
-              ..writeln()
-              ..writeln('Обстоятельства:')
-              ..writeln('Мотив: ${s.crime.motive}')
-              ..writeln('Способ: ${s.crime.method}')
-              ..writeln();
-        if (data.suspectNames.isNotEmpty) {
-          buffer.writeln('Подозреваемые:');
-          for (final name in data.suspectNames) {
-            buffer.writeln('  • $name');
-          }
-        }
-        if (s.timeline != null && s.timeline!.entries.isNotEmpty) {
-          buffer.writeln();
-          buffer.writeln('Хронология событий:');
-          for (final entry in s.timeline!.entries) {
-            buffer.writeln('  ${entry.time} — ${entry.event}');
-          }
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 8, offset: const Offset(0, 2))],
+        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+          return Center(
+            child: Text(
+              'Документ ещё не готов',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+              ),
             ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Дело №${s.id}',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  buffer.toString().trim(),
-                  style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.6),
-                ),
-              ],
+          );
+        }
+        return Container(
+          color: const Color(0xFFF5F0E8),
+          child: Markdown(
+            data: snapshot.data!,
+            padding: const EdgeInsets.all(16),
+            styleSheet: MarkdownStyleSheet(
+              h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              h2: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+              h3: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
+              p: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.6),
+              strong: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+              em: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black87),
+              listBullet: const TextStyle(fontSize: 15, color: Colors.black87),
+              tableBody: const TextStyle(fontSize: 14, color: Colors.black87),
+              tableHead: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+              tableBorder: TableBorder.all(color: Colors.grey.shade400, width: 0.5),
+              tableColumnWidth: const FlexColumnWidth(),
+              tableCellsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              code: TextStyle(fontSize: 13, color: Colors.grey.shade800, backgroundColor: Colors.grey.shade200),
             ),
           ),
         );
@@ -114,30 +85,18 @@ class _FactsTabState extends State<_FactsTab> {
   }
 }
 
-class _FactsData {
-  final Session session;
-  final List<String> suspectNames;
-
-  const _FactsData({required this.session, this.suspectNames = const []});
-}
-
 sealed class _Item {}
-
 class _EvidenceItem extends _Item {
   final Evidence evidence;
-
   _EvidenceItem(this.evidence);
 }
-
 class _ReportItem extends _Item {
   final ActionReport report;
-
   _ReportItem(this.report);
 }
 
 class _EvidenceTab extends StatefulWidget {
   const _EvidenceTab();
-
   @override
   State<_EvidenceTab> createState() => _EvidenceTabState();
 }
@@ -156,25 +115,12 @@ class _EvidenceTabState extends State<_EvidenceTab> {
     final list = await api.listEvidence();
     final items = <_Item>[];
     for (final e in list) {
-      if (e.type == 'evidence' ||
-          e.type == 'physical' ||
-          e.type == 'digital' ||
-          e.type == 'document' ||
-          e.type == 'testimony') {
+      if (e.type == 'physical' || e.type == 'digital' || e.type == 'document' || e.type == 'testimony') {
         items.add(_EvidenceItem(e));
       } else {
-        items.add(
-          _ReportItem(
-            ActionReport(
-              id: e.id,
-              type: e.type,
-              title: e.name,
-              description: e.description,
-              body: e.detailedDescription,
-              timestamp: DateTime.now(),
-            ),
-          ),
-        );
+        items.add(_ReportItem(ActionReport(
+          id: e.id, type: e.type, title: e.name, description: e.description, body: e.detailedDescription, timestamp: DateTime.now(),
+        )));
       }
     }
     return items;
@@ -194,12 +140,9 @@ class _EvidenceTabState extends State<_EvidenceTab> {
         final items = snapshot.data!;
         if (items.isEmpty) {
           return Center(
-            child: Text(
-              'Улик и отчётов пока нет',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
-            ),
+            child: Text('Улик и отчётов пока нет', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+            )),
           );
         }
         return ListView.builder(
@@ -218,7 +161,6 @@ class _EvidenceTabState extends State<_EvidenceTab> {
 
 class _EvidenceCard extends StatelessWidget {
   final Evidence evidence;
-
   const _EvidenceCard({required this.evidence});
 
   @override
@@ -242,10 +184,7 @@ class _EvidenceCard extends StatelessWidget {
                   children: [
                     Text(evidence.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
-                    Text(
-                      evidence.description,
-                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
-                    ),
+                    Text(evidence.description, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140))),
                   ],
                 ),
               ),
@@ -265,37 +204,26 @@ class _EvidenceCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (_) => Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withAlpha(60),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(evidence.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Text(evidence.detailedDescription, style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: colorScheme.onSurface.withAlpha(60), borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text(evidence.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Text(evidence.detailedDescription, style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _ReportCard extends StatelessWidget {
   final ActionReport report;
-
   const _ReportCard({required this.report});
 
   @override
@@ -306,10 +234,7 @@ class _ReportCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DocumentScreen(title: report.title, body: report.body)),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentScreen(title: report.title, body: report.body)));
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -324,10 +249,7 @@ class _ReportCard extends StatelessWidget {
                   children: [
                     Text(report.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
-                    Text(
-                      report.description,
-                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
-                    ),
+                    Text(report.description, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140))),
                   ],
                 ),
               ),

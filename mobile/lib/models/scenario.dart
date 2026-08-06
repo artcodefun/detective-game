@@ -143,13 +143,6 @@ class Evidence {
 
 class Session {
   final String id;
-  final String crimeType;
-  final String victim;
-  final String perpetratorId;
-  final String motive;
-  final String method;
-  final String timeOfCrime;
-  final Timeline? timeline;
   final String caseName;
   final String caseBrief;
   final int actionPoints;
@@ -159,13 +152,6 @@ class Session {
 
   const Session({
     required this.id,
-    this.crimeType = '',
-    this.victim = '',
-    this.perpetratorId = '',
-    this.motive = '',
-    this.method = '',
-    this.timeOfCrime = '',
-    this.timeline,
     this.caseName = '',
     this.caseBrief = '',
     this.actionPoints = 5,
@@ -174,29 +160,9 @@ class Session {
     required this.createdAt,
   });
 
-  Crime get crime => Crime(
-    crimeType: crimeType,
-    victim: victim,
-    perpetratorId: perpetratorId,
-    motive: motive,
-    method: method,
-    timeOfCrime: timeOfCrime,
-  );
-
   factory Session.fromJson(Map<String, dynamic> json) {
-    final crimeJson = json['crime'] as Map<String, dynamic>?;
     return Session(
       id: json['id'] as String,
-      crimeType: crimeJson?['crime_type'] as String? ?? '',
-      victim: crimeJson?['victim'] as String? ?? '',
-      perpetratorId: crimeJson?['perpetrator_id'] as String? ?? '',
-      motive: crimeJson?['motive'] as String? ?? '',
-      method: crimeJson?['method'] as String? ?? '',
-      timeOfCrime: crimeJson?['time_of_crime'] as String? ?? '',
-      timeline:
-          json['timeline'] != null
-              ? Timeline.fromJson((json['timeline'] as Map<String, dynamic>)['entries'] as List<dynamic>)
-              : null,
       caseName: json['case_name'] as String? ?? '',
       caseBrief: json['case_brief'] as String? ?? '',
       actionPoints: json['action_points'] as int? ?? 5,
@@ -208,15 +174,6 @@ class Session {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'crime': {
-      'crime_type': crimeType,
-      'victim': victim,
-      'perpetrator_id': perpetratorId,
-      'motive': motive,
-      'method': method,
-      'time_of_crime': timeOfCrime,
-    },
-    if (timeline != null) 'timeline': {'entries': timeline!.toJson()},
     'case_name': caseName,
     'case_brief': caseBrief,
     'action_points': actionPoints,

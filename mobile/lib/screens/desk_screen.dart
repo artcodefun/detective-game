@@ -25,7 +25,7 @@ class DeskScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Дело №${session.sessionId}'),
+        title: Text(session.caseName.isNotEmpty ? session.caseName : 'Дело'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

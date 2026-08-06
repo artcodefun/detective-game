@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -363,6 +364,8 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 		evList.WriteString(fmt.Sprintf("- %s: %s\n", ev.Name, ev.Description))
 	}
 
+	caseNumber := rand.Intn(9000) + 1000
+
 	briefPrompt := fmt.Sprintf(`Сгенерируй название дела и официальный документ для детектива.
 
 Контекст:
@@ -384,10 +387,12 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 Формат case_brief:
 
-# Дело №[номер]
+# Дело №%d
 
 **Место преступления:** [придумай адрес]
+
 **Предполагаемое время:** %s
+
 **Тип преступления:** Убийство
 
 ## Обстоятельства
@@ -406,9 +411,10 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 ---
 *Дело передано:* [вымышленное имя старшего следователя]
+
 *Дата открытия:* [сегодняшняя дата]`,
 		crime.Victim, crime.TimeOfCrime, crime.Method, crime.Motive,
-		charList.String(), evList.String(), crime.TimeOfCrime,
+		charList.String(), evList.String(), caseNumber, crime.TimeOfCrime,
 	)
 
 	content, err := c.chat(ctx, []chatMessage{
@@ -416,7 +422,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 		{Role: "user", Content: briefPrompt},
 	}, true)
 	if err != nil {
-		return "Дело №" + crime.Victim, "_документ не сгенерирован_"
+		return fmt.Sprintf("Дело №%d", caseNumber), "_документ не сгенерирован_"
 	}
 
 	var resp struct {
@@ -424,7 +430,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 		CaseBrief string `json:"case_brief"`
 	}
 	if err := json.Unmarshal([]byte(content), &resp); err != nil {
-		return "Дело №" + crime.Victim, content
+		return fmt.Sprintf("Дело №%d", caseNumber), content
 	}
 
 	return resp.CaseName, resp.CaseBrief
