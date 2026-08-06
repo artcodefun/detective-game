@@ -1,9 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/session_cubit.dart';
 import '../services/api_service.dart';
 import 'desk_screen.dart';
+
+const _messageTexts = [
+  'Открываем дело...',
+  'Осматриваем место преступления...',
+  'Собираем вещественные доказательства...',
+  'Опрашиваем свидетелей...',
+  'Изучаем отпечатки пальцев...',
+  'Проверяем алиби подозреваемых...',
+  'Анализируем улики в лаборатории...',
+  'Составляем фоторобот...',
+  'Сверяем показания...',
+  'Ищем несостыковки в хронологии...',
+  'Заливаем кофе в термос...',
+  'Протираем лупу...',
+  'Надеваем перчатки...',
+  'Достаём диктофон...',
+  'Печатаем протокол...',
+  'Проветриваем кабинет от сигарного дыма...',
+  'Кормим служебного пса...',
+  'Затачиваем карандаши...',
+];
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -12,33 +35,62 @@ class LoadingScreen extends StatefulWidget {
   State<LoadingScreen> createState() => _LoadingScreenState();
 }
 
-class _LoadingScreenState extends State<LoadingScreen> {
-  String _status = 'Готовим сценарий...';
+class _LoadingScreenState extends State<LoadingScreen> with SingleTickerProviderStateMixin {
+  int _msgIndex = 0;
   bool _error = false;
+  String _errorText = '';
+  Timer? _timer;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnim;
+  late List<String> _messages;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut);
+
+    _messages = List.from(_messageTexts)..shuffle();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _nextMessage());
+    _fadeController.forward();
+
     _generate();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  void _nextMessage() {
+    _fadeController.reverse().then((_) {
+      if (!mounted) return;
+      setState(() => _msgIndex = (_msgIndex + 1) % _messages.length);
+      _fadeController.forward();
+    });
   }
 
   Future<void> _generate() async {
     try {
-      setState(() => _status = 'Собираем улики, опрашиваем свидетелей...');
       await context.read<SessionCubit>().startNewGame();
       if (!mounted) return;
+      _timer?.cancel();
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
     } on ApiException catch (e) {
       if (!mounted) return;
+      _timer?.cancel();
       setState(() {
         _error = true;
-        _status = 'Ошибка: ${e.message}';
+        _errorText = e.message;
       });
     } catch (e) {
       if (!mounted) return;
+      _timer?.cancel();
       setState(() {
         _error = true;
-        _status = 'Не удалось подключиться к серверу';
+        _errorText = 'Не удалось подключиться к серверу';
       });
     }
   }
@@ -60,14 +112,26 @@ class _LoadingScreenState extends State<LoadingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                _error ? Icons.error_outline : Icons.auto_awesome,
+                _error ? Icons.error_outline : Icons.search,
                 size: 64,
                 color: _error ? colorScheme.error : colorScheme.primary,
               ),
-              const SizedBox(height: 24),
-              Text(_status, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               if (!_error) ...[
+                SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: FadeTransition(
+                      opacity: _fadeAnim,
+                      child: Text(
+                        _messages[_msgIndex],
+                        style: theme.textTheme.titleMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const LinearProgressIndicator(),
                 const SizedBox(height: 16),
                 Text(
@@ -76,13 +140,21 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 ),
               ],
               if (_error) ...[
-                const SizedBox(height: 8),
+                Text(
+                  'Ошибка: $_errorText',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: () {
                     setState(() {
                       _error = false;
-                      _status = 'Повторная попытка...';
+                      _msgIndex = 0;
+                      _messages = List.from(_messageTexts)..shuffle();
                     });
+                    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _nextMessage());
+                    _fadeController.forward();
                     _generate();
                   },
                   icon: const Icon(Icons.refresh),

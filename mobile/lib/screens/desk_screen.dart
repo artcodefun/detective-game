@@ -15,7 +15,13 @@ class DeskScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<SessionCubit>().state!;
+    final session = context.watch<SessionCubit>().state;
+    if (session == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Дело')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
