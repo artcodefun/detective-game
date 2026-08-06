@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -27,11 +28,11 @@ func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.U
 
 	var items []*readmodels.ChronologyEntry
 	for cursor.Next(ctx) {
-		var c readmodels.ChronologyEntry
+		var c domain.ChronologyEntry
 		if err := cursor.Decode(&c); err != nil {
 			return nil, fmt.Errorf("decode chronology entry: %w", err)
 		}
-		items = append(items, &c)
+		items = append(items, readmodels.ChronologyEntryFromDomain(&c))
 	}
 	if items == nil {
 		items = make([]*readmodels.ChronologyEntry, 0)

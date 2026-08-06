@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -27,11 +28,11 @@ func (r *EvidenceReadRepo) ListEvidence(ctx context.Context, sessionID uuid.UUID
 
 	var items []*readmodels.Evidence
 	for cursor.Next(ctx) {
-		var e readmodels.Evidence
+		var e domain.Evidence
 		if err := cursor.Decode(&e); err != nil {
 			return nil, fmt.Errorf("decode evidence: %w", err)
 		}
-		items = append(items, &e)
+		items = append(items, readmodels.EvidenceFromDomain(&e))
 	}
 	if items == nil {
 		items = make([]*readmodels.Evidence, 0)
@@ -40,10 +41,10 @@ func (r *EvidenceReadRepo) ListEvidence(ctx context.Context, sessionID uuid.UUID
 }
 
 func (r *EvidenceReadRepo) GetEvidence(ctx context.Context, sessionID uuid.UUID, evidenceID uuid.UUID) (*readmodels.Evidence, error) {
-	var e readmodels.Evidence
+	var e domain.Evidence
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": evidenceID}).Decode(&e)
 	if err != nil {
 		return nil, fmt.Errorf("find evidence: %w", err)
 	}
-	return &e, nil
+	return readmodels.EvidenceFromDomain(&e), nil
 }

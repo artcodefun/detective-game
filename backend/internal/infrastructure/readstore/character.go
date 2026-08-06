@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -31,11 +32,12 @@ func (r *CharacterReadRepo) ListCharacters(ctx context.Context, sessionID uuid.U
 
 	var items []*readmodels.Character
 	for cursor.Next(ctx) {
-		var c readmodels.Character
+		var c domain.Character
 		if err := cursor.Decode(&c); err != nil {
 			return nil, fmt.Errorf("decode character: %w", err)
 		}
-		items = append(items, &c)
+		rm := readmodels.CharacterFromDomain(c)
+		items = append(items, &rm)
 	}
 	if items == nil {
 		items = make([]*readmodels.Character, 0)
@@ -44,19 +46,20 @@ func (r *CharacterReadRepo) ListCharacters(ctx context.Context, sessionID uuid.U
 }
 
 func (r *CharacterReadRepo) GetCharacter(ctx context.Context, sessionID uuid.UUID, characterID uuid.UUID) (*readmodels.Character, error) {
-	var c readmodels.Character
+	var c domain.Character
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": characterID}).Decode(&c)
 	if err != nil {
 		return nil, fmt.Errorf("find character: %w", err)
 	}
-	return &c, nil
+	rm := readmodels.CharacterFromDomain(c)
+	return &rm, nil
 }
 
 func (r *CharacterReadRepo) GetInterrogation(ctx context.Context, interrogationID uuid.UUID) (*readmodels.Interrogation, error) {
-	var inter readmodels.Interrogation
+	var inter domain.Interrogation
 	err := r.inter.FindOne(ctx, bson.M{"_id": interrogationID}).Decode(&inter)
 	if err != nil {
 		return nil, fmt.Errorf("find interrogation: %w", err)
 	}
-	return &inter, nil
+	return readmodels.InterrogationFromDomain(&inter), nil
 }

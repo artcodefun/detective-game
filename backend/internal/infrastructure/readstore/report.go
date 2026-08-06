@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -19,12 +20,12 @@ func NewReportReadRepo(db *mongo.Database) *ReportReadRepo {
 }
 
 func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*readmodels.ActionReport, error) {
-	var report readmodels.ActionReport
+	var report domain.ActionReport
 	err := r.coll.FindOne(ctx, bson.M{"_id": reportID}).Decode(&report)
 	if err != nil {
 		return nil, fmt.Errorf("find report: %w", err)
 	}
-	return &report, nil
+	return readmodels.ActionReportFromDomain(&report), nil
 }
 
 func (r *ReportReadRepo) ListReports(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ActionReport, error) {
@@ -36,11 +37,11 @@ func (r *ReportReadRepo) ListReports(ctx context.Context, sessionID uuid.UUID) (
 
 	var items []*readmodels.ActionReport
 	for cursor.Next(ctx) {
-		var report readmodels.ActionReport
+		var report domain.ActionReport
 		if err := cursor.Decode(&report); err != nil {
 			return nil, fmt.Errorf("decode report: %w", err)
 		}
-		items = append(items, &report)
+		items = append(items, readmodels.ActionReportFromDomain(&report))
 	}
 	if items == nil {
 		items = make([]*readmodels.ActionReport, 0)
