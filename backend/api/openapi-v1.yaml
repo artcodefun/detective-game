@@ -1,0 +1,1203 @@
+openapi: "3.1.0"
+info:
+  title: Detective Game API
+  description: API для мобильной игры в жанре детективного расследования.
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер для разработки
+
+security:
+  - UserID: []
+  - SessionID: []
+
+paths:
+  /api/v1/sessions:
+    post:
+      operationId: createSession
+      tags: [Sessions]
+      summary: Создать новую игровую сессию
+      description: Запускает конвейер генерации сценария (Crime → Timeline → Evidence → Memories → Consistency Check). Сессия привязывается к пользователю.
+      security:
+        - UserID: []
+      responses:
+        "201":
+          description: Сессия создана, генерация завершена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSessionResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/history:
+    get:
+      operationId: listHistory
+      tags: [Sessions]
+      summary: Список завершённых сессий
+      description: Возвращает все предыдущие сессии пользователя (с результатами и без).
+      security:
+        - UserID: []
+      responses:
+        "200":
+          description: Список сессий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/sessions/current:
+    get:
+      operationId: getSession
+      tags: [Sessions]
+      summary: Текущая активная сессия
+      description: Возвращает полное состояние текущей игровой сессии.
+      responses:
+        "200":
+          description: Состояние сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/evidence:
+    get:
+      operationId: listEvidence
+      tags: [Evidence]
+      summary: Список улик
+      description: Все вещественные улики, выданные в начале сессии.
+      responses:
+        "200":
+          description: Список улик
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Evidence"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/evidence/{evId}:
+    get:
+      operationId: getEvidence
+      tags: [Evidence]
+      summary: Детали улики
+      parameters:
+        - $ref: "#/components/parameters/EvidenceId"
+      responses:
+        "200":
+          description: Детальное описание улики
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Evidence"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/characters:
+    get:
+      operationId: listCharacters
+      tags: [Characters]
+      summary: Список персонажей в сессии
+      description: Возвращает 5 персонажей текущей сессии с их знаниями, секретами, воспоминаниями и текущим уровнем доверия.
+      responses:
+        "200":
+          description: Список персонажей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Character"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/characters/{charId}:
+    get:
+      operationId: getCharacter
+      tags: [Characters]
+      summary: Детали персонажа
+      parameters:
+        - $ref: "#/components/parameters/CharacterId"
+      responses:
+        "200":
+          description: Полная информация о персонаже
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/chronology:
+    get:
+      operationId: getChronology
+      tags: [Chronology]
+      summary: Хронология расследования
+      description: "Лента всех событий в деле: допросы, результаты анализов, заметки."
+      responses:
+        "200":
+          description: Хронология
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChronologyEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/chronology/{chronId}/notes/{noteId}:
+    patch:
+      operationId: updateNotebookEntry
+      tags: [Chronology]
+      summary: Обновить запись в блокноте
+      description: Пометить запись тегами (strange/suspicious/lie/key) и/или добавить заметку.
+      parameters:
+        - $ref: "#/components/parameters/ChronologyId"
+        - $ref: "#/components/parameters/NoteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/NoteTag"
+                  description: Метки для записи
+                note:
+                  type: string
+                  description: Текстовая заметка игрока
+      responses:
+        "200":
+          description: Запись обновлена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusOk"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/interrogations:
+    post:
+      operationId: createInterrogation
+      tags: [Interrogations]
+      summary: Начать допрос персонажа
+      description: Создаёт новую сессию допроса указанного персонажа. У персонажа должен быть ненулевой лимит допросов.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - character_id
+              properties:
+                character_id:
+                  type: string
+                  format: uuid
+                  description: ID персонажа для допроса
+      responses:
+        "201":
+          description: Допрос создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Interrogation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/interrogations/{interId}:
+    get:
+      operationId: getInterrogation
+      tags: [Interrogations]
+      summary: Информация о допросе
+      parameters:
+        - $ref: "#/components/parameters/InterrogationId"
+      responses:
+        "200":
+          description: Допрос
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Interrogation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/interrogations/{interId}/messages:
+    get:
+      operationId: getInterrogationMessages
+      tags: [Interrogations]
+      summary: История сообщений допроса
+      description: Полная история диалога с персонажем в рамках этого допроса.
+      parameters:
+        - $ref: "#/components/parameters/InterrogationId"
+      responses:
+        "200":
+          description: Сообщения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      operationId: addInterrogationMessage
+      tags: [Interrogations]
+      summary: Отправить сообщение в допросе
+      description: Отправляет реплику игрока и получает ответ персонажа от LLM. LLM получает полную историю диалога (включая предыдущие допросы) и CharacterState.
+      parameters:
+        - $ref: "#/components/parameters/InterrogationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Текст вопроса/реплики игрока
+      responses:
+        "200":
+          description: Ответ персонажа (сообщение от LLM)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/interrogations/{interId}/complete:
+    patch:
+      operationId: completeInterrogation
+      tags: [Interrogations]
+      summary: Завершить допрос
+      description: Принудительно завершает допрос (или по истечении 10 минут, или по желанию игрока).
+      parameters:
+        - $ref: "#/components/parameters/InterrogationId"
+      responses:
+        "200":
+          description: Допрос завершён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusOk"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/actions/dna-analysis:
+    post:
+      operationId: dnaAnalysis
+      tags: [Actions]
+      summary: Анализ ДНК
+      description: Тратит 1 очко действия на анализ ДНК улики.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - evidence_id
+              properties:
+                evidence_id:
+                  type: string
+                  format: uuid
+                  description: ID улики для анализа
+      responses:
+        "200":
+          description: Результат анализа
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/actions/fingerprints:
+    post:
+      operationId: fingerprintsCheck
+      tags: [Actions]
+      summary: Поиск отпечатков
+      description: Тратит 1 очко действия на проверку отпечатков на улике.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - evidence_id
+              properties:
+                evidence_id:
+                  type: string
+                  format: uuid
+                  description: ID улики для проверки
+      responses:
+        "200":
+          description: Результат проверки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/actions/alibi-check:
+    post:
+      operationId: alibiCheck
+      tags: [Actions]
+      summary: Проверка алиби
+      description: Тратит 1 очко действия на проверку алиби персонажа.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - character_id
+                - alibi_text
+              properties:
+                character_id:
+                  type: string
+                  format: uuid
+                  description: ID персонажа
+                alibi_text:
+                  type: string
+                  description: Текст алиби для проверки
+      responses:
+        "200":
+          description: Результат проверки алиби
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/actions/camera-review:
+    post:
+      operationId: cameraReview
+      tags: [Actions]
+      summary: Запрос записей с камер
+      description: Тратит 1 очко действия на запрос записей с камер наблюдения.
+      responses:
+        "200":
+          description: Записи с камер
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/actions/call-history:
+    post:
+      operationId: callHistory
+      tags: [Actions]
+      summary: Запрос истории звонков
+      description: Тратит 1 очко действия на запрос телефонных записей персонажа.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - character_id
+              properties:
+                character_id:
+                  type: string
+                  format: uuid
+                  description: ID персонажа
+      responses:
+        "200":
+          description: История звонков
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/actions/transactions:
+    post:
+      operationId: transactionCheck
+      tags: [Actions]
+      summary: Запрос банковских транзакций
+      description: Тратит 1 очко действия на запрос финансовых операций персонажа.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - character_id
+              properties:
+                character_id:
+                  type: string
+                  format: uuid
+                  description: ID персонажа
+      responses:
+        "200":
+          description: Банковские транзакции
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/reports/{reportId}:
+    get:
+      operationId: getReport
+      tags: [Reports]
+      summary: Получить отчёт
+      description: Возвращает отчёт лаборатории (результат анализа или проверки).
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: Отчёт
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/reports:
+    post:
+      operationId: submitReport
+      tags: [Reports]
+      summary: Сдать финальный отчёт
+      description: |
+        Игрок отправляет свою версию событий. Игра сравнивает с ground truth по 5 пунктам (who/why/how/when/evidence) — бинарно correct/incorrect.
+        LLM генерирует нарративный фидбек.
+        После этого сессия считается завершённой.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitReportRequest"
+      responses:
+        "200":
+          description: Результат оценки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    UserID:
+      type: apiKey
+      in: header
+      name: X-User-ID
+      description: UUID пользователя (обязателен для всех запросов)
+    SessionID:
+      type: apiKey
+      in: header
+      name: X-Session-ID
+      description: UUID активной сессии (обязателен для всех запросов кроме `POST /sessions` и `GET /sessions/history`)
+
+  parameters:
+    EvidenceId:
+      name: evId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID улики
+
+    CharacterId:
+      name: charId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID персонажа
+
+    InterrogationId:
+      name: interId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID допроса
+
+    ChronologyId:
+      name: chronId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID записи хронологии
+
+    NoteId:
+      name: noteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID заметки
+
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID отчёта
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    StatusOk:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Код или описание ошибки
+      required:
+        - error
+
+    CreateSessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: ID созданной сессии
+      required:
+        - session_id
+
+    Session:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        case_name:
+          type: string
+          description: Название дела
+        case_brief:
+          type: string
+          description: Краткое описание дела
+        crime:
+          $ref: "#/components/schemas/Crime"
+        timeline:
+          $ref: "#/components/schemas/Timeline"
+        action_points:
+          type: integer
+          description: Оставшиеся очки действий (лупы)
+          minimum: 0
+          maximum: 5
+        phase:
+          type: string
+          description: Текущая фаза сессии
+          enum:
+            - active
+            - completed
+        game_result:
+          $ref: "#/components/schemas/GameResult"
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - user_id
+        - case_name
+        - case_brief
+        - crime
+        - timeline
+        - action_points
+        - phase
+        - created_at
+
+    Crime:
+      type: object
+      properties:
+        crime_type:
+          type: string
+          description: Тип преступления (murder, theft, etc.)
+        victim:
+          type: string
+          description: Имя жертвы
+        perpetrator_id:
+          $ref: "#/components/schemas/UUID"
+        motive:
+          type: string
+          description: Мотив преступления
+        method:
+          type: string
+          description: Способ совершения
+        time_of_crime:
+          type: string
+          description: Время преступления (игровое)
+      required:
+        - crime_type
+        - victim
+        - perpetrator_id
+        - motive
+        - method
+        - time_of_crime
+
+    Timeline:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineEntry"
+      required:
+        - entries
+
+    TimelineEntry:
+      type: object
+      properties:
+        time:
+          type: string
+          description: Время события (игровое)
+        event:
+          type: string
+          description: Описание события
+        character_id:
+          $ref: "#/components/schemas/UUID"
+      required:
+        - time
+        - event
+
+    Evidence:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          description: Название улики
+        description:
+          type: string
+          description: Краткое описание
+        detailed_description:
+          type: string
+          description: Детальное описание для экрана документа
+        type:
+          type: string
+          description: Тип улики
+        icon_asset:
+          type: string
+          description: Идентификатор иконки/ассета
+      required:
+        - id
+        - name
+        - description
+        - detailed_description
+        - type
+        - icon_asset
+
+    Character:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        session_id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          description: Имя персонажа
+        age:
+          type: integer
+          description: Возраст
+        profession:
+          type: string
+          description: Профессия
+        personality:
+          type: string
+          description: Описание характера (2-3 предложения)
+        gender:
+          type: string
+          description: Пол
+        knowledge:
+          $ref: "#/components/schemas/CharacterKnowledge"
+        secrets:
+          type: array
+          items:
+            type: string
+          description: Секреты, которые персонаж скрывает
+        relationships:
+          type: object
+          additionalProperties:
+            type: string
+          description: Отношения к другим персонажам (ключ — имя персонажа)
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+          description: Ключевые воспоминания
+        trust:
+          type: integer
+          description: Уровень доверия к детективу (0–100, скрыт от игрока)
+          minimum: 0
+          maximum: 100
+        interrogations_remaining:
+          type: integer
+          description: Оставшееся количество допросов
+          minimum: 0
+          maximum: 3
+      required:
+        - id
+        - session_id
+        - name
+        - age
+        - profession
+        - personality
+        - gender
+        - knowledge
+        - secrets
+        - relationships
+        - memories
+        - trust
+        - interrogations_remaining
+
+    CharacterKnowledge:
+      type: object
+      properties:
+        known_facts:
+          type: array
+          items:
+            type: string
+          description: Факты, которые персонаж точно знает
+        partial_facts:
+          type: array
+          items:
+            type: string
+          description: Факты, которые персонаж знает частично/неточно
+        false_beliefs:
+          type: array
+          items:
+            type: string
+          description: Заблуждения персонажа
+      required:
+        - known_facts
+        - partial_facts
+        - false_beliefs
+
+    Memory:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        content:
+          type: string
+          description: Содержание воспоминания
+        is_true:
+          type: boolean
+          description: Правда или ложь (относительно ground truth)
+        timestamp:
+          type: string
+          description: Игровое время события
+      required:
+        - id
+        - content
+        - is_true
+        - timestamp
+
+    Interrogation:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        session_id:
+          $ref: "#/components/schemas/UUID"
+        character_id:
+          $ref: "#/components/schemas/UUID"
+        phase:
+          type: string
+          description: Статус допроса
+          enum:
+            - active
+            - completed
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - session_id
+        - character_id
+        - phase
+        - created_at
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        session_id:
+          $ref: "#/components/schemas/UUID"
+        interrogation_id:
+          $ref: "#/components/schemas/UUID"
+        from_user:
+          type: boolean
+          description: true — сообщение игрока, false — ответ персонажа
+        text:
+          type: string
+          description: Текст сообщения
+        statements:
+          type: array
+          items:
+            type: string
+          description: Ключевые утверждения из ответа LLM (авто-сохраняются в блокнот)
+        attitude_delta:
+          type: integer
+          description: Изменение trust (положительное или отрицательное, от LLM)
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - session_id
+        - interrogation_id
+        - from_user
+        - text
+        - attitude_delta
+        - timestamp
+
+    NoteTag:
+      type: string
+      description: Метка для записи в блокноте
+      enum:
+        - strange
+        - suspicious
+        - lie
+        - key
+
+    ChronologyEntry:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        event_type:
+          type: string
+          description: Тип события (interrogation, analysis, etc.)
+        title:
+          type: string
+          description: Заголовок события
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotebookEntry"
+      required:
+        - id
+        - event_type
+        - title
+        - timestamp
+        - details
+
+    NotebookEntry:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        type:
+          type: string
+          description: Тип записи
+        character_id:
+          type: integer
+          description: ID персонажа (если относится к персонажу)
+        description:
+          type: string
+          description: Текст записи
+        user_tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoteTag"
+          description: Метки, поставленные игроком
+        user_note:
+          type: string
+          description: Заметка игрока
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - description
+        - user_tags
+        - timestamp
+
+    ActionReport:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        type:
+          type: string
+          description: Тип действия (dna_analysis, fingerprints, alibi_check, etc.)
+        title:
+          type: string
+          description: Заголовок отчёта
+        description:
+          type: string
+          description: Краткое описание результата
+        body:
+          type: string
+          description: Полный текст отчёта для экрана документа
+        evidence_id:
+          $ref: "#/components/schemas/UUID"
+        character_id:
+          $ref: "#/components/schemas/UUID"
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - description
+        - body
+        - timestamp
+
+    SubmitReportRequest:
+      type: object
+      properties:
+        who:
+          type: string
+          description: Кто совершил преступление
+        why:
+          type: string
+          description: Мотив
+        how:
+          type: string
+          description: Способ
+        when:
+          type: string
+          description: Время преступления
+        evidence:
+          type: string
+          description: Улики, подтверждающие версию
+      required:
+        - who
+        - why
+        - how
+        - when
+        - evidence
+
+    GameResult:
+      type: object
+      properties:
+        player_report:
+          $ref: "#/components/schemas/FinalReport"
+        breakdown:
+          $ref: "#/components/schemas/ScoreBreakdown"
+        narrative_feedback:
+          type: string
+          description: Нарративный фидбек от LLM (1-2 предложения)
+        breakdown_details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Пояснения по каждому пункту (ключ — who/why/how/when/evidence)
+      required:
+        - player_report
+        - breakdown
+        - narrative_feedback
+        - breakdown_details
+
+    FinalReport:
+      type: object
+      properties:
+        who:
+          type: string
+        why:
+          type: string
+        how:
+          type: string
+        when:
+          type: string
+        evidence:
+          type: string
+      required:
+        - who
+        - why
+        - how
+        - when
+        - evidence
+
+    ScoreBreakdown:
+      type: object
+      properties:
+        who_correct:
+          type: boolean
+        why_correct:
+          type: boolean
+        how_correct:
+          type: boolean
+        when_correct:
+          type: boolean
+        evidence_correct:
+          type: boolean
+      required:
+        - who_correct
+        - why_correct
+        - how_correct
+        - when_correct
+        - evidence_correct
+
+  responses:
+    BadRequest:
+      description: Невалидный запрос (некорректный JSON, отсутствуют обязательные поля, невалидный UUID)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "missing or invalid X-User-ID header"
+
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "not_found"
+
+    Forbidden:
+      description: Действие запрещено (не хватает очков действий, лимит допросов исчерпан, etc.)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "forbidden"
+
+    Conflict:
+      description: Конфликт состояния (например, допрос уже завершён)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "conflict"
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "failed to create session"
+
+tags:
+  - name: Sessions
+    description: Управление игровыми сессиями
+  - name: Characters
+    description: Персонажи в текущей сессии
+  - name: Evidence
+    description: Улики и вещественные доказательства
+  - name: Interrogations
+    description: Допросы персонажей
+  - name: Chronology
+    description: Хронология расследования и блокнот
+  - name: Actions
+    description: Действия детектива (анализы, проверки)
+  - name: Reports
+    description: Отчёты и финальная оценка
