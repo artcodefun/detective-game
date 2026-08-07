@@ -54,7 +54,6 @@ class _PreviousCasesScreenState extends State<PreviousCasesScreen> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, index) {
               final s = sessions[index];
-              final shortId = s.id.length > 8 ? s.id.substring(0, 8) : s.id;
 
               int? accuracy;
               String trackRecord = '—';
@@ -68,8 +67,8 @@ class _PreviousCasesScreenState extends State<PreviousCasesScreen> {
                 leading: CircleAvatar(
                   backgroundColor: colorScheme.primaryContainer,
                   child: Text(
-                    shortId,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer),
+                    s.caseName.isNotEmpty ? s.caseName[0].toUpperCase() : '?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer),
                   ),
                 ),
                 title: Text(s.caseName, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),

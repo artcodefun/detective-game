@@ -57,3 +57,11 @@ func (r *SessionRepo) Update(ctx context.Context, session *domain.Session) error
 	_, err := r.coll.ReplaceOne(ctx, bson.M{"_id": session.ID}, session)
 	return err
 }
+
+func (r *SessionRepo) FinishActiveByUserID(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.coll.UpdateMany(ctx,
+		bson.M{"user_id": userID, "phase": bson.M{"$ne": "finished"}},
+		bson.M{"$set": bson.M{"phase": "finished"}},
+	)
+	return err
+}

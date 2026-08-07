@@ -17,6 +17,7 @@ type SessionRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Session, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Session, error)
 	Update(ctx context.Context, session *domain.Session) error
+	FinishActiveByUserID(ctx context.Context, userID uuid.UUID) error
 }
 
 type CharacterRepository interface {

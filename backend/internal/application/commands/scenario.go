@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
@@ -34,6 +35,10 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 	output, err := c.LLM.GenerateScenario(ctx)
 	if err != nil {
 		return uuid.Nil, err
+	}
+
+	if err := c.Sessions.FinishActiveByUserID(ctx, userID); err != nil {
+		return uuid.Nil, fmt.Errorf("finish active sessions: %w", err)
 	}
 
 	sessionID := uuid.New()

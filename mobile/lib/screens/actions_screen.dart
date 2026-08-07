@@ -75,8 +75,28 @@ class ActionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ap = context.watch<SessionCubit>().state?.actionPoints ?? 0;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Действия')),
+      appBar: AppBar(
+        title: const Text('Действия'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search, size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 4),
+                Text(
+                  '$ap',
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

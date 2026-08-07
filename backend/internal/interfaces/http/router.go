@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/artcodefun/detective-game/backend/internal/application"
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ func NewRouter(h *Handlers) http.Handler {
 	apiMux.HandleFunc("POST /api/v1/sessions", h.CreateSession)
 	apiMux.HandleFunc("GET /api/v1/sessions/history", h.ListHistory)
 	apiMux.HandleFunc("GET /api/v1/sessions/current", h.GetSession)
+	apiMux.HandleFunc("GET /api/v1/sessions/{id}", h.GetSessionByID)
 
 	apiMux.HandleFunc("GET /api/v1/evidence", h.ListEvidence)
 	apiMux.HandleFunc("GET /api/v1/evidence/{evId}", h.GetEvidence)
@@ -72,10 +74,10 @@ func sessionMiddleware(next http.Handler) http.Handler {
 }
 
 func needsSessionID(r *http.Request) bool {
-	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/sessions" {
+	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/sessions/") {
 		return false
 	}
-	if r.Method == http.MethodGet && r.URL.Path == "/api/v1/sessions/history" {
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/sessions" {
 		return false
 	}
 	return true

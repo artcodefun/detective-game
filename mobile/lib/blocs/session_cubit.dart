@@ -51,6 +51,11 @@ class SessionCubit extends Cubit<SessionState?> {
     }
   }
 
+  void resumeSession(String sessionId, String caseName, int actionPoints, String phase) {
+    _api.setSessionId(sessionId);
+    emit(SessionState(sessionId: sessionId, caseName: caseName, actionPoints: actionPoints, phase: phase));
+  }
+
   void clear() {
     _api.clearSessionId();
     emit(null);

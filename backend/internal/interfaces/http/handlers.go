@@ -54,6 +54,22 @@ func (h *Handlers) GetSession(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	session, err := h.Session.GetSession(r.Context(), actor)
 	if err != nil {
+		writeError(w, http.StatusNotFound, "no active session")
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+// GET /api/v1/sessions/{id}
+func (h *Handlers) GetSessionByID(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	sessionID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+	session, err := h.Session.GetSessionByID(r.Context(), actor, sessionID)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "session not found")
 		return
 	}

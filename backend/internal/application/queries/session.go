@@ -6,6 +6,7 @@ import (
 	"github.com/artcodefun/detective-game/backend/internal/application"
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/google/uuid"
 )
 
 type SessionQueries struct {
@@ -17,7 +18,11 @@ func NewSessionQueries(readStore ports.SessionReadRepository) *SessionQueries {
 }
 
 func (q *SessionQueries) GetSession(ctx context.Context, actor application.Actor) (*readmodels.Session, error) {
-	return q.ReadStore.GetSession(ctx, actor.SessionID)
+	return q.ReadStore.GetSession(ctx, actor.UserID)
+}
+
+func (q *SessionQueries) GetSessionByID(ctx context.Context, actor application.Actor, sessionID uuid.UUID) (*readmodels.Session, error) {
+	return q.ReadStore.GetSessionByID(ctx, actor.UserID, sessionID)
 }
 
 func (q *SessionQueries) ListHistory(ctx context.Context, actor application.Actor) ([]*readmodels.Session, error) {

@@ -1,5 +1,3 @@
-enum GamePhase { idle, generating, investigating, writingReport, finished }
-
 enum TrustLevel { open, reserved, tense, closed }
 
 class Memory {

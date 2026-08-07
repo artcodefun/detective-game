@@ -9,6 +9,7 @@ import (
 
 type SessionQueries interface {
 	GetSession(ctx context.Context, actor Actor) (*readmodels.Session, error)
+	GetSessionByID(ctx context.Context, actor Actor, sessionID uuid.UUID) (*readmodels.Session, error)
 	ListHistory(ctx context.Context, actor Actor) ([]*readmodels.Session, error)
 	GetGameResult(ctx context.Context, actor Actor) (*readmodels.GameResult, error)
 }

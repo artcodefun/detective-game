@@ -19,9 +19,21 @@ func NewSessionReadRepo(db *mongo.Database) *SessionReadRepo {
 	return &SessionReadRepo{coll: db.Collection("sessions")}
 }
 
-func (r *SessionReadRepo) GetSession(ctx context.Context, sessionID uuid.UUID) (*readmodels.Session, error) {
+func (r *SessionReadRepo) GetSession(ctx context.Context, userID uuid.UUID) (*readmodels.Session, error) {
 	var session domain.Session
-	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session)
+	err := r.coll.FindOne(ctx, bson.M{
+		"user_id": userID,
+		"phase":   bson.M{"$ne": "finished"},
+	}).Decode(&session)
+	if err != nil {
+		return nil, fmt.Errorf("find active session: %w", err)
+	}
+	return readmodels.SessionFromDomain(&session), nil
+}
+
+func (r *SessionReadRepo) GetSessionByID(ctx context.Context, userID uuid.UUID, sessionID uuid.UUID) (*readmodels.Session, error) {
+	var session domain.Session
+	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID, "user_id": userID}).Decode(&session)
 	if err != nil {
 		return nil, fmt.Errorf("find session: %w", err)
 	}

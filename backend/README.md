@@ -40,8 +40,9 @@ internal/
 │   ├── ports/                    — интерфейсы инфраструктуры
 │   └── services/                 — сервисы приложения
 ├── bootstrap/      — композиция зависимостей (Pure DI)
-├── infrastructure/ — адаптеры (in-memory storage, mock LLM)
-└── interfaces/     — HTTP-обработчики, роутер, middleware
+├── infrastructure/ — адаптеры (MongoDB, OpenRouter LLM)
+├── interfaces/     — HTTP-обработчики, роутер, middleware
+└── api/            — OpenAPI-спецификация (openapi-v1.yaml)
 ```
 
 ## Правила
@@ -59,13 +60,14 @@ internal/
 
 ## API
 
-Все эндпоинты требуют заголовок `X-User-ID`. Эндпоинты с игровой логикой также требуют `X-Session-ID` (кроме `POST /sessions` и `GET /sessions/history`).
+Все эндпоинты требуют заголовок `X-User-ID` (UUID пользователя). Большинство эндпоинтов игровой логики требуют `X-Session-ID` (UUID сессии). Исключения (не требуют `X-Session-ID`): `POST /sessions`, `GET /sessions/history`, `GET /sessions/current`, `GET /sessions/{id}`.
 
 | Метод | Путь | Описание |
 |-------|------|---------|
 | POST | `/api/v1/sessions` | Создать игровую сессию |
-| GET | `/api/v1/sessions/history` | История сессий |
-| GET | `/api/v1/sessions/current` | Текущая сессия |
+| GET | `/api/v1/sessions/current` | Активная сессия пользователя (не требует `X-Session-ID`) |
+| GET | `/api/v1/sessions/{id}` | Конкретная сессия по ID (не требует `X-Session-ID`) |
+| GET | `/api/v1/sessions/history` | История завершённых сессий |
 | GET | `/api/v1/characters` | Список персонажей |
 | GET | `/api/v1/characters/{charId}` | Детали персонажа |
 | GET | `/api/v1/evidence` | Список улик |
@@ -85,8 +87,4 @@ internal/
 | POST | `/api/v1/reports` | Отправить финальный отчёт |
 | GET | `/api/v1/reports/{reportId}` | Просмотр отчёта |
 
-## Текущее состояние
-
-- **Storage:** In-memory (сбрасывается при перезапуске)
-- **LLM:** Mock-сервис с предзаданным сценарием (убийство на вилле)
-- **Персонажи:** 5 предзагруженных прототипов
+Полная спецификация в формате OpenAPI 3.1: [`api/openapi-v1.yaml`](api/openapi-v1.yaml).

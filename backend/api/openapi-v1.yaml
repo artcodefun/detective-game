@@ -56,14 +56,44 @@ paths:
       operationId: getSession
       tags: [Sessions]
       summary: Текущая активная сессия
-      description: Возвращает полное состояние текущей игровой сессии.
+      description: Возвращает активную сессию пользователя (фаза не finished). Не требует X-Session-ID — ищет по X-User-ID.
+      security:
+        - UserID: []
       responses:
         "200":
-          description: Состояние сессии
+          description: Активная сессия
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/sessions/{id}:
+    get:
+      operationId: getSessionById
+      tags: [Sessions]
+      summary: Конкретная сессия по ID
+      description: Возвращает любую сессию пользователя по ID (только если принадлежит пользователю).
+      security:
+        - UserID: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID сессии
+      responses:
+        "200":
+          description: Сессия
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -572,7 +602,7 @@ components:
       type: apiKey
       in: header
       name: X-Session-ID
-      description: UUID активной сессии (обязателен для всех запросов кроме `POST /sessions` и `GET /sessions/history`)
+      description: UUID активной сессии (обязателен для всех запросов кроме `POST /sessions`, `GET /sessions/history`, `GET /sessions/current` и `GET /sessions/{id}`)
 
   parameters:
     EvidenceId:
@@ -670,14 +700,10 @@ components:
           $ref: "#/components/schemas/UUID"
         case_name:
           type: string
-          description: Название дела
+          description: Название дела (генерируется LLM)
         case_brief:
           type: string
-          description: Краткое описание дела
-        crime:
-          $ref: "#/components/schemas/Crime"
-        timeline:
-          $ref: "#/components/schemas/Timeline"
+          description: Markdown-документ с описанием дела (для вкладки «Факты»)
         action_points:
           type: integer
           description: Оставшиеся очки действий (лупы)
@@ -687,8 +713,8 @@ components:
           type: string
           description: Текущая фаза сессии
           enum:
-            - active
-            - completed
+            - investigating
+            - finished
         game_result:
           $ref: "#/components/schemas/GameResult"
         created_at:
@@ -697,10 +723,6 @@ components:
       required:
         - id
         - user_id
-        - case_name
-        - case_brief
-        - crime
-        - timeline
         - action_points
         - phase
         - created_at

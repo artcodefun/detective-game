@@ -9,10 +9,7 @@ import (
 type GamePhase string
 
 const (
-	GamePhaseIdle          GamePhase = "idle"
-	GamePhaseGenerating    GamePhase = "generating"
 	GamePhaseInvestigating GamePhase = "investigating"
-	GamePhaseWritingReport GamePhase = "writing_report"
 	GamePhaseFinished      GamePhase = "finished"
 )
 
