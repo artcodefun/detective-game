@@ -27,7 +27,7 @@ func (r *InterrogationRepo) FindInterrogationByID(ctx context.Context, id uuid.U
 	var inter domain.Interrogation
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&inter)
 	if err != nil {
-		return nil, fmt.Errorf("find interrogation: %w", err)
+		return nil, wrapFindError("find interrogation", err)
 	}
 	return &inter, nil
 }

@@ -18,5 +18,5 @@ func NewNotebookCommands(chronology ports.ChronologyRepository) *NotebookCommand
 }
 
 func (c *NotebookCommands) UpdateNotebookEntry(ctx context.Context, actor application.Actor, chronologyID, entryID uuid.UUID, tags []domain.NoteTag, note *string) error {
-	return c.Chronology.UpdateChronologyEntry(ctx, actor.SessionID, chronologyID, entryID, tags, note)
+	return application.WrapError(c.Chronology.UpdateChronologyEntry(ctx, actor.SessionID, chronologyID, entryID, tags, note))
 }

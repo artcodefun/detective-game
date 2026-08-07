@@ -26,7 +26,7 @@ func (r *SessionReadRepo) GetSession(ctx context.Context, userID uuid.UUID) (*re
 		"phase":   bson.M{"$ne": "finished"},
 	}).Decode(&session)
 	if err != nil {
-		return nil, fmt.Errorf("find active session: %w", err)
+		return nil, wrapFindError("find active session", err)
 	}
 	return readmodels.SessionFromDomain(&session), nil
 }
@@ -35,7 +35,7 @@ func (r *SessionReadRepo) GetSessionByID(ctx context.Context, userID uuid.UUID, 
 	var session domain.Session
 	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID, "user_id": userID}).Decode(&session)
 	if err != nil {
-		return nil, fmt.Errorf("find session: %w", err)
+		return nil, wrapFindError("find session", err)
 	}
 	return readmodels.SessionFromDomain(&session), nil
 }
@@ -44,7 +44,7 @@ func (r *SessionReadRepo) GetGameResult(ctx context.Context, sessionID uuid.UUID
 	var session domain.Session
 	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session)
 	if err != nil {
-		return nil, fmt.Errorf("find session: %w", err)
+		return nil, wrapFindError("find session", err)
 	}
 	if session.GameResult == nil {
 		return nil, fmt.Errorf("session %s has no result yet", sessionID)

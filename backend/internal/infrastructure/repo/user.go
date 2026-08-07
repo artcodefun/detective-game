@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
@@ -27,7 +26,7 @@ func (r *UserRepo) FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User
 	var user domain.User
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
 	if err != nil {
-		return nil, fmt.Errorf("find user: %w", err)
+		return nil, wrapFindError("find user", err)
 	}
 	return &user, nil
 }

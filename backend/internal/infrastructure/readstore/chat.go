@@ -24,7 +24,7 @@ func (r *ChatReadRepo) GetChatMessage(ctx context.Context, messageID uuid.UUID) 
 	var msg domain.ChatMessage
 	err := r.coll.FindOne(ctx, bson.M{"_id": messageID}).Decode(&msg)
 	if err != nil {
-		return nil, fmt.Errorf("find chat message: %w", err)
+		return nil, wrapFindError("find chat message", err)
 	}
 	rm := readmodels.ChatMessageFromDomain(msg)
 	return &rm, nil

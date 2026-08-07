@@ -2,9 +2,9 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/artcodefun/detective-game/backend/internal/application"
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
@@ -28,17 +28,17 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 		user := domain.NewUser()
 		user.ID = userID
 		if err := c.Users.CreateUser(ctx, &user); err != nil {
-			return uuid.Nil, err
+			return uuid.Nil, application.WrapError(err)
 		}
 	}
 
 	output, err := c.LLM.GenerateScenario(ctx)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	if err := c.Sessions.FinishActiveByUserID(ctx, userID); err != nil {
-		return uuid.Nil, fmt.Errorf("finish active sessions: %w", err)
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	sessionID := uuid.New()
@@ -56,19 +56,19 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 	}
 
 	if err := c.Sessions.Create(ctx, session); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	for i := range output.Characters {
 		output.Characters[i].AssignToSession(sessionID)
 		if err := c.Characters.CreateCharacter(ctx, &output.Characters[i]); err != nil {
-			return uuid.Nil, err
+			return uuid.Nil, application.WrapError(err)
 		}
 	}
 
 	for i := range output.Evidence {
 		if err := c.Evidence.AppendEvidence(ctx, sessionID, &output.Evidence[i]); err != nil {
-			return uuid.Nil, err
+			return uuid.Nil, application.WrapError(err)
 		}
 	}
 

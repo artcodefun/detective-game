@@ -49,7 +49,7 @@ func (r *ChatRepo) FindChatByID(ctx context.Context, id uuid.UUID) (*domain.Chat
 	var msg domain.ChatMessage
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&msg)
 	if err != nil {
-		return nil, fmt.Errorf("find chat message: %w", err)
+		return nil, wrapFindError("find chat message", err)
 	}
 	return &msg, nil
 }

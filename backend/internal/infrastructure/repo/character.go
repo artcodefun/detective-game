@@ -27,7 +27,7 @@ func (r *CharacterRepo) FindCharacterByID(ctx context.Context, sessionID uuid.UU
 	var c domain.Character
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": characterID}).Decode(&c)
 	if err != nil {
-		return nil, fmt.Errorf("find character: %w", err)
+		return nil, wrapFindError("find character", err)
 	}
 	return &c, nil
 }

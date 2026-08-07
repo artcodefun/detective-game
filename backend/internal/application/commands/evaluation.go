@@ -21,7 +21,7 @@ func NewEvaluationCommands(sessions ports.SessionRepository, llm ports.LlmServic
 func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application.Actor, report domain.FinalReport) error {
 	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
 	if err != nil {
-		return err
+		return application.WrapError(err)
 	}
 	if session.Phase == domain.GamePhaseFinished {
 		return application.NewAppError(application.KindConflict, "session_already_finished")
@@ -29,7 +29,7 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 
 	feedback, err := c.LLM.EvaluateReport(ctx, report, session.Crime)
 	if err != nil {
-		return err
+		return application.WrapError(err)
 	}
 
 	breakdown := scoreReport(report, session.Crime)
@@ -43,7 +43,7 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 	}
 	session.Finish(result)
 
-	return c.Sessions.Update(ctx, session)
+	return application.WrapError(c.Sessions.Update(ctx, session))
 }
 
 func scoreReport(report domain.FinalReport, truth domain.Crime) *domain.ScoreBreakdown {

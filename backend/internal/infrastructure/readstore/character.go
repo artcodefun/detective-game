@@ -49,7 +49,7 @@ func (r *CharacterReadRepo) GetCharacter(ctx context.Context, sessionID uuid.UUI
 	var c domain.Character
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": characterID}).Decode(&c)
 	if err != nil {
-		return nil, fmt.Errorf("find character: %w", err)
+		return nil, wrapFindError("find character", err)
 	}
 	rm := readmodels.CharacterFromDomain(c)
 	return &rm, nil
@@ -59,7 +59,7 @@ func (r *CharacterReadRepo) GetInterrogation(ctx context.Context, interrogationI
 	var inter domain.Interrogation
 	err := r.inter.FindOne(ctx, bson.M{"_id": interrogationID}).Decode(&inter)
 	if err != nil {
-		return nil, fmt.Errorf("find interrogation: %w", err)
+		return nil, wrapFindError("find interrogation", err)
 	}
 	return readmodels.InterrogationFromDomain(&inter), nil
 }

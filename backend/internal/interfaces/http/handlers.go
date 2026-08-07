@@ -29,7 +29,7 @@ func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	sessionID, err := h.Scenario.CreateSession(r.Context(), actor.UserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create session")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"session_id": sessionID.String()})
@@ -40,7 +40,7 @@ func (h *Handlers) ListHistory(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	history, err := h.Session.ListHistory(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list history")
+		writeAppError(w, err)
 		return
 	}
 	if history == nil {
@@ -54,7 +54,7 @@ func (h *Handlers) GetSession(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	session, err := h.Session.GetSession(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "no active session")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
@@ -70,7 +70,7 @@ func (h *Handlers) GetSessionByID(w http.ResponseWriter, r *http.Request) {
 	}
 	session, err := h.Session.GetSessionByID(r.Context(), actor, sessionID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "session not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
@@ -81,7 +81,7 @@ func (h *Handlers) ListEvidence(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	ev, err := h.Evidence.ListEvidence(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "session not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ev)
@@ -97,7 +97,7 @@ func (h *Handlers) GetEvidence(w http.ResponseWriter, r *http.Request) {
 	}
 	ev, err := h.Evidence.GetEvidence(r.Context(), actor, evID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "evidence not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ev)
@@ -108,7 +108,7 @@ func (h *Handlers) ListCharacters(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	chars, err := h.Character.ListCharacters(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "session not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, chars)
@@ -124,7 +124,7 @@ func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 	char, err := h.Character.GetCharacter(r.Context(), actor, charID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "character not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, char)
@@ -135,7 +135,7 @@ func (h *Handlers) GetChronology(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	chron, err := h.Chronology.GetChronology(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "session not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, chron)
@@ -166,7 +166,7 @@ func (h *Handlers) UpdateNotebookEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Notebook.UpdateNotebookEntry(r.Context(), actor, chronID, entryID, body.Tags, body.Note); err != nil {
-		writeError(w, http.StatusNotFound, "entry not found")
+		writeAppError(w, err)
 		return
 	}
 
@@ -206,7 +206,7 @@ func (h *Handlers) GetInterrogation(w http.ResponseWriter, r *http.Request) {
 
 	inter, err := h.Chat.GetInterrogation(r.Context(), actor, interID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "interrogation not found")
+		writeAppError(w, err)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *Handlers) AddInterrogationMessage(w http.ResponseWriter, r *http.Reques
 
 	msg, err := h.Chat.GetChatMessage(r.Context(), actor, msgID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get message")
+		writeAppError(w, err)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (h *Handlers) GetInterrogationMessages(w http.ResponseWriter, r *http.Reque
 
 	messages, err := h.Chat.ListChatByInterrogation(r.Context(), actor, interID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list messages")
+		writeAppError(w, err)
 		return
 	}
 	if messages == nil {
@@ -307,7 +307,7 @@ func (h *Handlers) DNAAnalysis(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -330,7 +330,7 @@ func (h *Handlers) FingerprintsCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -354,7 +354,7 @@ func (h *Handlers) AlibiCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -370,7 +370,7 @@ func (h *Handlers) CameraReview(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -393,7 +393,7 @@ func (h *Handlers) CallHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -416,7 +416,7 @@ func (h *Handlers) TransactionCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get report")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -432,7 +432,7 @@ func (h *Handlers) GetReport(w http.ResponseWriter, r *http.Request) {
 	}
 	report, err := h.Evidence.GetReport(r.Context(), actor, reportID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "report not found")
+		writeAppError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
@@ -469,7 +469,7 @@ func (h *Handlers) SubmitReport(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.Session.GetGameResult(r.Context(), actor)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get result")
+		writeAppError(w, err)
 		return
 	}
 

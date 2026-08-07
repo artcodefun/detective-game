@@ -49,7 +49,7 @@ func (r *EvidenceRepo) FindEvidenceByID(ctx context.Context, sessionID uuid.UUID
 	var e domain.Evidence
 	err := r.coll.FindOne(ctx, bson.M{"session_id": sessionID, "_id": evidenceID}).Decode(&e)
 	if err != nil {
-		return nil, fmt.Errorf("find evidence: %w", err)
+		return nil, wrapFindError("find evidence", err)
 	}
 	return &e, nil
 }

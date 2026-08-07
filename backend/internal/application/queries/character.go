@@ -18,9 +18,11 @@ func NewCharacterQueries(chars ports.CharacterReadRepository) *CharacterQueries 
 }
 
 func (q *CharacterQueries) ListCharacters(ctx context.Context, actor application.Actor) ([]*readmodels.Character, error) {
-	return q.Characters.ListCharacters(ctx, actor.SessionID)
+	c, err := q.Characters.ListCharacters(ctx, actor.SessionID)
+	return c, application.WrapError(err)
 }
 
 func (q *CharacterQueries) GetCharacter(ctx context.Context, actor application.Actor, characterID uuid.UUID) (*readmodels.Character, error) {
-	return q.Characters.GetCharacter(ctx, actor.SessionID, characterID)
+	c, err := q.Characters.GetCharacter(ctx, actor.SessionID, characterID)
+	return c, application.WrapError(err)
 }

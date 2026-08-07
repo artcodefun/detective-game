@@ -23,7 +23,7 @@ func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*re
 	var report domain.ActionReport
 	err := r.coll.FindOne(ctx, bson.M{"_id": reportID}).Decode(&report)
 	if err != nil {
-		return nil, fmt.Errorf("find report: %w", err)
+		return nil, wrapFindError("find report", err)
 	}
 	return readmodels.ActionReportFromDomain(&report), nil
 }

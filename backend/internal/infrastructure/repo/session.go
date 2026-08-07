@@ -27,7 +27,7 @@ func (r *SessionRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Sessi
 	var session domain.Session
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&session)
 	if err != nil {
-		return nil, fmt.Errorf("find session: %w", err)
+		return nil, wrapFindError("find session", err)
 	}
 	return &session, nil
 }

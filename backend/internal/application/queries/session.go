@@ -18,17 +18,21 @@ func NewSessionQueries(readStore ports.SessionReadRepository) *SessionQueries {
 }
 
 func (q *SessionQueries) GetSession(ctx context.Context, actor application.Actor) (*readmodels.Session, error) {
-	return q.ReadStore.GetSession(ctx, actor.UserID)
+	s, err := q.ReadStore.GetSession(ctx, actor.UserID)
+	return s, application.WrapError(err)
 }
 
 func (q *SessionQueries) GetSessionByID(ctx context.Context, actor application.Actor, sessionID uuid.UUID) (*readmodels.Session, error) {
-	return q.ReadStore.GetSessionByID(ctx, actor.UserID, sessionID)
+	s, err := q.ReadStore.GetSessionByID(ctx, actor.UserID, sessionID)
+	return s, application.WrapError(err)
 }
 
 func (q *SessionQueries) ListHistory(ctx context.Context, actor application.Actor) ([]*readmodels.Session, error) {
-	return q.ReadStore.ListHistory(ctx, actor.UserID)
+	h, err := q.ReadStore.ListHistory(ctx, actor.UserID)
+	return h, application.WrapError(err)
 }
 
 func (q *SessionQueries) GetGameResult(ctx context.Context, actor application.Actor) (*readmodels.GameResult, error) {
-	return q.ReadStore.GetGameResult(ctx, actor.SessionID)
+	r, err := q.ReadStore.GetGameResult(ctx, actor.SessionID)
+	return r, application.WrapError(err)
 }

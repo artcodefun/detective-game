@@ -1,6 +1,10 @@
 package application
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/artcodefun/detective-game/backend/internal/application/ports"
+)
 
 type ErrorKind int
 
@@ -24,6 +28,20 @@ func (e AppError) Error() string {
 
 func NewAppError(kind ErrorKind, code string) AppError {
 	return AppError{Kind: kind, Code: code}
+}
+
+func WrapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var appErr AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	if errors.Is(err, ports.ErrNotFound) {
+		return ErrNotFound
+	}
+	return NewAppError(KindInternal, "internal_error")
 }
 
 var (

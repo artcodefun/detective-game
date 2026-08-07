@@ -30,7 +30,7 @@ type actionRequest struct {
 func (c *ActionCommands) executeAction(ctx context.Context, actor application.Actor, req actionRequest) (uuid.UUID, error) {
 	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	if !session.SpendActionPoints(req.kind.Cost()) {
@@ -38,12 +38,12 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	}
 
 	if err := c.Sessions.Update(ctx, session); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	body, err := c.LLM.RunAction(ctx, string(req.kind), req.evidenceID, req.characterID, req.alibiText)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	report := domain.ActionReport{
@@ -56,7 +56,7 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	}
 
 	if err := c.Reports.AppendReport(ctx, actor.SessionID, &report); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	return report.ID, nil

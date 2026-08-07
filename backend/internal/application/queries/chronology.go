@@ -17,5 +17,6 @@ func NewChronologyQueries(chronology ports.ChronologyReadRepository) *Chronology
 }
 
 func (q *ChronologyQueries) GetChronology(ctx context.Context, actor application.Actor) ([]*readmodels.ChronologyEntry, error) {
-	return q.Chronology.GetChronology(ctx, actor.SessionID)
+	c, err := q.Chronology.GetChronology(ctx, actor.SessionID)
+	return c, application.WrapError(err)
 }

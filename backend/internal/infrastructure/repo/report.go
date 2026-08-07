@@ -28,7 +28,7 @@ func (r *ReportRepo) FindReportByID(ctx context.Context, reportID uuid.UUID) (*d
 	var report domain.ActionReport
 	err := r.coll.FindOne(ctx, bson.M{"_id": reportID}).Decode(&report)
 	if err != nil {
-		return nil, fmt.Errorf("find report: %w", err)
+		return nil, wrapFindError("find report", err)
 	}
 	return &report, nil
 }

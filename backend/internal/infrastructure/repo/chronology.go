@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -58,7 +59,7 @@ func (r *ChronologyRepo) UpdateChronologyEntry(ctx context.Context, sessionID uu
 		return fmt.Errorf("update chronology entry: %w", err)
 	}
 	if result.MatchedCount == 0 {
-		return fmt.Errorf("entry %s not found in chronology %s", entryID, chronologyID)
+		return fmt.Errorf("update chronology entry: %w", ports.ErrNotFound)
 	}
 	return nil
 }
