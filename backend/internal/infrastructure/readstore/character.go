@@ -63,3 +63,12 @@ func (r *CharacterReadRepo) GetInterrogation(ctx context.Context, interrogationI
 	}
 	return readmodels.InterrogationFromDomain(&inter), nil
 }
+
+func (r *CharacterReadRepo) GetActiveInterrogation(ctx context.Context, sessionID uuid.UUID) (*readmodels.Interrogation, error) {
+	var inter domain.Interrogation
+	err := r.inter.FindOne(ctx, bson.M{"session_id": sessionID, "phase": domain.InterrogationActive}).Decode(&inter)
+	if err != nil {
+		return nil, wrapFindError("find active interrogation", err)
+	}
+	return readmodels.InterrogationFromDomain(&inter), nil
+}

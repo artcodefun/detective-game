@@ -11,8 +11,9 @@ import '../widgets/mood_indicator.dart';
 
 class InterrogationScreen extends StatefulWidget {
   final String characterId;
+  final String? interrogationId;
 
-  const InterrogationScreen({super.key, required this.characterId});
+  const InterrogationScreen({super.key, required this.characterId, this.interrogationId});
 
   @override
   State<InterrogationScreen> createState() => _InterrogationScreenState();
@@ -37,7 +38,6 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   @override
   void initState() {
     super.initState();
-    _initSpeech();
     _startInterrogation();
   }
 
@@ -51,8 +51,14 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
 
   Future<void> _startInterrogation() async {
     try {
-      final inter = await _api.createInterrogation(widget.characterId);
-      _interId = inter.id;
+      final interId = widget.interrogationId ?? (await _api.createInterrogation(widget.characterId)).id;
+      _interId = interId;
+
+      if (widget.interrogationId != null) {
+        final messages = await _api.getInterrogationMessages(interId);
+        if (mounted) setState(() => _messages.addAll(messages));
+      }
+
       final character = await _api.getCharacter(widget.characterId);
       if (mounted) setState(() => _character = character);
     } catch (e) {
@@ -61,11 +67,6 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
         Navigator.pop(context);
       }
     }
-  }
-
-  Future<void> _initSpeech() async {
-    await _speech.initialize(onStatus: _onSpeechStatus);
-    if (mounted) setState(() => _speechInitialized = true);
   }
 
   Future<void> _toggleListening() async {

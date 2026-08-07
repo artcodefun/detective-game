@@ -34,4 +34,5 @@ type ChatQueries interface {
 	GetChatMessage(ctx context.Context, actor Actor, messageID uuid.UUID) (*readmodels.ChatMessage, error)
 	ListChatByInterrogation(ctx context.Context, actor Actor, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error)
 	GetInterrogation(ctx context.Context, actor Actor, interrogationID uuid.UUID) (*readmodels.Interrogation, error)
+	GetActiveInterrogation(ctx context.Context, actor Actor) (*readmodels.Interrogation, error)
 }

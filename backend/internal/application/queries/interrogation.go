@@ -32,3 +32,8 @@ func (q *ChatQueries) GetInterrogation(ctx context.Context, actor application.Ac
 	i, err := q.Characters.GetInterrogation(ctx, interrogationID)
 	return i, application.WrapError(err)
 }
+
+func (q *ChatQueries) GetActiveInterrogation(ctx context.Context, actor application.Actor) (*readmodels.Interrogation, error) {
+	i, err := q.Characters.GetActiveInterrogation(ctx, actor.SessionID)
+	return i, application.WrapError(err)
+}

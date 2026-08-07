@@ -182,12 +182,28 @@ class _PhoneBookSheet extends StatefulWidget {
 }
 
 class _PhoneBookSheetState extends State<_PhoneBookSheet> {
-  late Future<List<Character>> _future;
+  Future<List<Character>>? _charactersFuture;
 
   @override
   void initState() {
     super.initState();
-    _future = context.read<ApiService>().listCharacters();
+    _checkAndLoad();
+  }
+
+  Future<void> _checkAndLoad() async {
+    final api = context.read<ApiService>();
+    final active = await api.getActiveInterrogation();
+    if (active != null && mounted) {
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => InterrogationScreen(
+          characterId: active.characterId,
+          interrogationId: active.id,
+        ),
+      ));
+      return;
+    }
+    if (mounted) setState(() => _charactersFuture = api.listCharacters());
   }
 
   @override
@@ -222,8 +238,10 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: FutureBuilder<List<Character>>(
-                  future: _future,
+                child: _charactersFuture == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : FutureBuilder<List<Character>>(
+                  future: _charactersFuture!,
                   builder: (_, snapshot) {
                     if (snapshot.connectionState != ConnectionState.done) {
                       return const Center(child: CircularProgressIndicator());

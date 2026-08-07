@@ -18,6 +18,7 @@ type CharacterReadRepository interface {
 	ListCharacters(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.Character, error)
 	GetCharacter(ctx context.Context, sessionID uuid.UUID, characterID uuid.UUID) (*readmodels.Character, error)
 	GetInterrogation(ctx context.Context, interrogationID uuid.UUID) (*readmodels.Interrogation, error)
+	GetActiveInterrogation(ctx context.Context, sessionID uuid.UUID) (*readmodels.Interrogation, error)
 }
 
 type ChatMessageReadRepository interface {

@@ -4,6 +4,8 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Игра использует микрофон для голосового ввода вопросов к подозреваемым</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Игра использует распознавание речи для голосового ввода вопросов</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

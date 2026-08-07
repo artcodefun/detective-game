@@ -162,6 +162,16 @@ class ApiService {
     return Interrogation.fromJson(res);
   }
 
+  Future<Interrogation?> getActiveInterrogation() async {
+    try {
+      final res = await _get('/api/v1/interrogations/active');
+      return Interrogation.fromJson(res);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
   Future<Interrogation> getInterrogation(String interId) async {
     final res = await _get('/api/v1/interrogations/$interId');
     return Interrogation.fromJson(res);

@@ -22,6 +22,7 @@ func NewRouter(h *Handlers) http.Handler {
 	apiMux.HandleFunc("GET /api/v1/characters", h.ListCharacters)
 	apiMux.HandleFunc("GET /api/v1/characters/{charId}", h.GetCharacter)
 	apiMux.HandleFunc("GET /api/v1/chronology", h.GetChronology)
+	apiMux.HandleFunc("GET /api/v1/interrogations/active", h.GetActiveInterrogation)
 	apiMux.HandleFunc("POST /api/v1/interrogations", h.CreateInterrogation)
 	apiMux.HandleFunc("GET /api/v1/interrogations/{interId}", h.GetInterrogation)
 	apiMux.HandleFunc("POST /api/v1/interrogations/{interId}/messages", h.AddInterrogationMessage)

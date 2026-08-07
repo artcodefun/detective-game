@@ -173,6 +173,17 @@ func (h *Handlers) UpdateNotebookEntry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// GET /api/v1/interrogations/active
+func (h *Handlers) GetActiveInterrogation(w http.ResponseWriter, r *http.Request) {
+	actor := ActorFromContext(r.Context())
+	inter, err := h.Chat.GetActiveInterrogation(r.Context(), actor)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, inter)
+}
+
 // POST /api/v1/interrogations
 func (h *Handlers) CreateInterrogation(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
