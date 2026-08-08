@@ -203,7 +203,12 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
       ));
       return;
     }
-    if (mounted) setState(() => _charactersFuture = api.listCharacters());
+    final charactersFuture = api.listCharacters();
+    if (mounted) {
+      setState(() {
+        _charactersFuture = charactersFuture;
+      });
+    }
   }
 
   @override
