@@ -150,6 +150,17 @@ type llmScenarioResponse struct {
 	Evidence   []llmEvidence      `json:"evidence"`
 }
 
+type llmPrivateCharacter struct {
+	ID       int         `json:"id"`
+	Opinions []string    `json:"opinions"`
+	Secrets  []string    `json:"secrets"`
+	Memories []llmMemory `json:"memories"`
+}
+
+type llmPrivateResponse struct {
+	Characters []llmPrivateCharacter `json:"characters"`
+}
+
 func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.ScenarioOutput, error) {
 	systemPrompt := `Ты — генератор детективных сценариев для игры. Создай запутанное дело об убийстве.
 
@@ -176,12 +187,10 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
       "profession": "профессия",
       "personality": "описание характера и манеры речи (2-3 предложения)",
       "gender": "male или female",
-      "opinions": ["мнение или предположение персонажа"],
-      "secrets": ["секрет"],
+      "opinions": [],
+      "secrets": [],
       "relationships": {"2": "описание отношений с персонажем 2"},
-      "memories": [
-        {"content": "субъективное воспоминание персонажа", "timestamp": "21:00"}
-      ],
+      "memories": [],
       "trust": 55
     }
   ],
@@ -253,6 +262,11 @@ timeline. Исключение только для явно случайной, 
 - "Отпечатки пальцев принадлежат Ивану."
 - "В телефоне найдена переписка с жертвой."
 
+=== ПРИВАТНЫЕ ДАННЫЕ ПЕРСОНАЖЕЙ ===
+На этом этапе НЕ генерируй opinions, secrets и memories. Оставь эти поля
+пустыми массивами. Они будут сгенерированы отдельным запросом после проверки
+crime, timeline, characters и evidence.
+
 === ОБЩИЕ ПРАВИЛА ===
 - characters.id — порядковый номер (1,2,3,4,5)
 - perpetrator_id — номер персонажа-убийцы (совпадает с characters.id)
@@ -262,19 +276,10 @@ timeline. Исключение только для явно случайной, 
 - gender — "male" или "female"
 - Все значимые улики ДОЛЖНЫ появляться в timeline с полной причинной цепочкой
 - relationships — ключ это номер персонажа, значение — описание отношений
-- secrets — у каждого персонажа должен быть хотя бы один секрет
-- memories — 8-12 субъективных воспоминаний на персонажа: события до преступления,
-  момент преступления и события после него, только с точки зрения этого персонажа
-- opinions — 2-5 мнений или предположений персонажа, без маркировки «истина/ложь»
-- secrets — 2-4 вещи, которые персонаж намеренно скрывает
-- Воспоминания должны быть основаны на timeline, но отражать только то, что персонаж
-  мог видеть, слышать, сделать или узнать. Не давай персонажу чужие знания.
-- Не добавляй в memories, opinions или secrets действий и предметов, которых нет
-  в timeline. Проверяй совпадение времени, мест, авторов и владельцев предметов.
-- Для персонажа, чей id равен perpetrator_id, обязательно включи в memories события
-  убийства и сокрытия следов от его собственной точки зрения. В secrets обязательно
-  укажи, что он убил жертву, а также важные действия по сокрытию преступления.
-- trust — начальное доверие к детективу (0-100). У убийцы низкое (10-30)
+- trust — начальное отношение к детективу (0-100). Определи его по характеру,
+  личному опыту и предыстории персонажа. Оно не должно зависеть от того,
+  является ли персонаж преступником или невиновным. Не делай преступника
+  автоматически более закрытым, нервным или враждебным.
 - Всего 5 персонажей и ровно 5 улик
 - ВАЖНО: проверь, что все JSON-массивы и объекты корректно закрыты. Не оставляй ключи без значений.`
 
@@ -300,10 +305,20 @@ timeline. Исключение только для явно случайной, 
 		}
 	}
 
+	private, err := c.generatePrivateCharacterData(ctx, llmResp)
+	if err != nil {
+		return nil, fmt.Errorf("generate private character data: %w", err)
+	}
+
 	perpetratorID := uuid.Nil
 	idByLLMID := make(map[int]uuid.UUID, len(llmResp.Characters))
 	domainChars := make([]domain.Character, len(llmResp.Characters))
 	for i, lc := range llmResp.Characters {
+		if details, ok := private[lc.ID]; ok {
+			lc.Opinions = details.Opinions
+			lc.Secrets = details.Secrets
+			lc.Memories = details.Memories
+		}
 		charID := uuid.New()
 		idByLLMID[lc.ID] = charID
 
@@ -380,6 +395,80 @@ timeline. Исключение только для явно случайной, 
 	}, nil
 }
 
+func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, scenario llmScenarioResponse) (map[int]llmPrivateCharacter, error) {
+	contextJSON, err := json.Marshal(scenario)
+	if err != nil {
+		return nil, fmt.Errorf("marshal private character context: %w", err)
+	}
+
+	systemPrompt := `Ты — генератор внутреннего состояния персонажей детективной игры.
+Тебе передан уже готовый объективный сценарий: crime, timeline, characters и evidence.
+Верни ТОЛЬКО JSON следующего формата:
+
+{
+  "characters": [
+    {
+      "id": 1,
+      "opinions": ["мнение или предположение персонажа"],
+      "secrets": ["то, что персонаж намеренно скрывает"],
+      "memories": [
+        {"content": "субъективное воспоминание", "timestamp": "21:00"}
+      ]
+    }
+  ]
+}
+
+Правила:
+- Верни ровно одного результата для каждого из пяти characters, сохранив их id.
+- Сгенерируй 8-12 воспоминаний для каждого персонажа. Они должны охватывать
+  события до преступления, момент преступления и события после него.
+- Воспоминание описывает только личную перспективу: что персонаж видел, слышал,
+  делал или узнал. Не выдавай объективный комментарий о его достоверности.
+- Все воспоминания, мнения и секреты должны быть основаны на timeline. Не добавляй
+  действий, предметов, мест или мотивов, которых нет в timeline.
+- Учитывай, что персонаж может неправильно интерпретировать увиденное или иметь
+  ошибочное предположение. Не помечай это как «ложное» — просто формулируй его
+  как мнение или личное восприятие.
+- Сгенерируй 2-5 opinions и 2-4 secrets для каждого персонажа.
+- Для персонажа, чей id равен crime.perpetrator_id, обязательно включи в memories
+  его собственные воспоминания о подготовке, совершении преступления и сокрытии
+  следов. В secrets обязательно укажи факт совершённого убийства и важные действия
+  по сокрытию. Он знает, что виновен, но не обязан признаваться детективу.
+- Для остальных персонажей не добавляй знаний, которых они не могли получить из
+  личного опыта, отношений или событий timeline.
+- Не добавляй поля id или source в memories.
+- Проверь, что JSON корректно закрыт.`
+
+	messages := []chatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: "Сгенерируй приватные данные персонажей для этого сценария:\n" + string(contextJSON)},
+	}
+	content, err := c.chat(ctx, messages, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var response llmPrivateResponse
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		retryContent, retryErr := c.chat(ctx, messages, true)
+		if retryErr != nil {
+			return nil, fmt.Errorf("parse private character data (retry failed): %w\n%s", err, content)
+		}
+		if retryParseErr := json.Unmarshal([]byte(retryContent), &response); retryParseErr != nil {
+			return nil, fmt.Errorf("parse private character data: %w\n%s", err, content)
+		}
+	}
+
+	byID := make(map[int]llmPrivateCharacter, len(response.Characters))
+	for _, character := range response.Characters {
+		byID[character.ID] = character
+	}
+	if len(byID) != len(scenario.Characters) {
+		return nil, fmt.Errorf("private character data contains %d characters, expected %d", len(byID), len(scenario.Characters))
+	}
+	return byID, nil
+}
+
 func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain.Character, crime llmCrime, evidence []llmEvidence, timeline []llmTimelineEntry) (string, string) {
 	var charList strings.Builder
 	for _, ch := range chars {
@@ -412,11 +501,16 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 Объективная хронология:
 %s
 
-КРИТИЧЕСКИ ВАЖНО: хронология — единственный источник фактов. Не добавляй в
-документ ни людей, ни место, ни адрес, ни время, ни предметы, ни обстоятельства,
-которых нет в контексте. Не противоречь хронологии и не раскрывай имя преступника,
-его мотив или внутренние действия, если это не является открытым фактом из списка
-улик. Документ должен описывать только то, что доступно следствию на старте.
+КРИТИЧЕСКИ ВАЖНО: хронология — источник истины для проверки согласованности,
+но она содержит внутренние события, неизвестные следствию на старте. Не переноси
+в документ скрытые действия персонажей, их намерения, мотивы, алиби, попытки
+скрыть следы или создать ложную версию. Не раскрывай виновного и причинную
+цепочку преступления.
+
+Документ должен описывать только информацию, доступную следствию при первом
+осмотре: место и время, тело, общие обстоятельства происшествия и физические
+объекты, действительно обнаруженные на месте. Не добавляй факты, которых нет
+в контексте, и не противоречь хронологии.
 
 Верни JSON:
 {
@@ -441,7 +535,14 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 ## Список подозреваемых
 
-[маркированный список, по одной строке на каждого. Формат: - **Имя**, возраст, профессия — краткая связь с жертвой]
+[маркированный список, по одной строке на каждого. Формат: - **Имя**, возраст,
+профессия — нейтральная связь с жертвой или местом дела]
+
+Связь должна быть общей и не раскрывать роль персонажа в происшествии: должность,
+родство, знакомство, деловые или личные отношения, присутствие на месте работы
+или иная публично известная связь. Не описывай конкретные действия персонажа,
+обращение с предметами, перемещение объектов, создание следов, обнаружение тела
+или другие события из внутренней хронологии.
 
 ## Улики с места преступления
 
