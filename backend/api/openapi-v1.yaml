@@ -830,23 +830,11 @@ components:
         gender:
           type: string
           description: Пол
-        knowledge:
-          $ref: "#/components/schemas/CharacterKnowledge"
-        secrets:
-          type: array
-          items:
-            type: string
-          description: Секреты, которые персонаж скрывает
         relationships:
           type: object
           additionalProperties:
             type: string
           description: Отношения к другим персонажам (ключ — имя персонажа)
-        memories:
-          type: array
-          items:
-            $ref: "#/components/schemas/Memory"
-          description: Ключевые воспоминания
         trust:
           type: integer
           description: Уровень доверия к детективу (0–100, скрыт от игрока)
@@ -865,55 +853,9 @@ components:
         - profession
         - personality
         - gender
-        - knowledge
-        - secrets
         - relationships
-        - memories
         - trust
         - interrogations_remaining
-
-    CharacterKnowledge:
-      type: object
-      properties:
-        known_facts:
-          type: array
-          items:
-            type: string
-          description: Факты, которые персонаж точно знает
-        partial_facts:
-          type: array
-          items:
-            type: string
-          description: Факты, которые персонаж знает частично/неточно
-        false_beliefs:
-          type: array
-          items:
-            type: string
-          description: Заблуждения персонажа
-      required:
-        - known_facts
-        - partial_facts
-        - false_beliefs
-
-    Memory:
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/UUID"
-        content:
-          type: string
-          description: Содержание воспоминания
-        is_true:
-          type: boolean
-          description: Правда или ложь (относительно ground truth)
-        timestamp:
-          type: string
-          description: Игровое время события
-      required:
-        - id
-        - content
-        - is_true
-        - timestamp
 
     Interrogation:
       type: object

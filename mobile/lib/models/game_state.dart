@@ -1,47 +1,5 @@
 enum TrustLevel { open, reserved, tense, closed }
 
-class Memory {
-  final String id;
-  final String content;
-  final bool isTrue;
-  final String timestamp;
-
-  const Memory({required this.id, required this.content, required this.isTrue, required this.timestamp});
-
-  factory Memory.fromJson(Map<String, dynamic> json) {
-    return Memory(
-      id: json['id'] as String,
-      content: json['content'] as String,
-      isTrue: json['is_true'] as bool,
-      timestamp: json['timestamp'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {'id': id, 'content': content, 'is_true': isTrue, 'timestamp': timestamp};
-}
-
-class CharacterKnowledge {
-  final List<String> knownFacts;
-  final List<String> partialFacts;
-  final List<String> falseBeliefs;
-
-  const CharacterKnowledge({this.knownFacts = const [], this.partialFacts = const [], this.falseBeliefs = const []});
-
-  factory CharacterKnowledge.fromJson(Map<String, dynamic> json) {
-    return CharacterKnowledge(
-      knownFacts: List<String>.from(json['known_facts'] ?? []),
-      partialFacts: List<String>.from(json['partial_facts'] ?? []),
-      falseBeliefs: List<String>.from(json['false_beliefs'] ?? []),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'known_facts': knownFacts,
-    'partial_facts': partialFacts,
-    'false_beliefs': falseBeliefs,
-  };
-}
-
 class ChatMessage {
   final String id;
   final String sessionId;
@@ -98,10 +56,7 @@ class Character {
   final String profession;
   final String personality;
   final String? gender;
-  final CharacterKnowledge knowledge;
-  final List<String> secrets;
   final Map<String, String> relationships;
-  final List<Memory> memories;
   final int trust;
   final int interrogationsRemaining;
 
@@ -117,10 +72,7 @@ class Character {
     required this.profession,
     required this.personality,
     this.gender,
-    this.knowledge = const CharacterKnowledge(),
-    this.secrets = const [],
     this.relationships = const {},
-    this.memories = const [],
     this.trust = 50,
     this.interrogationsRemaining = maxInterrogations,
   });
@@ -142,10 +94,7 @@ class Character {
     String? profession,
     String? personality,
     String? gender,
-    CharacterKnowledge? knowledge,
-    List<String>? secrets,
     Map<String, String>? relationships,
-    List<Memory>? memories,
     int? trust,
     int? interrogationsRemaining,
   }) {
@@ -157,10 +106,7 @@ class Character {
       profession: profession ?? this.profession,
       personality: personality ?? this.personality,
       gender: gender ?? this.gender,
-      knowledge: knowledge ?? this.knowledge,
-      secrets: secrets ?? this.secrets,
       relationships: relationships ?? this.relationships,
-      memories: memories ?? this.memories,
       trust: trust ?? this.trust,
       interrogationsRemaining: interrogationsRemaining ?? this.interrogationsRemaining,
     );
@@ -175,14 +121,7 @@ class Character {
       profession: json['profession'] as String,
       personality: json['personality'] as String,
       gender: json['gender'] as String?,
-      knowledge:
-          json['knowledge'] != null
-              ? CharacterKnowledge.fromJson(json['knowledge'] as Map<String, dynamic>)
-              : const CharacterKnowledge(),
-      secrets: List<String>.from(json['secrets'] ?? []),
       relationships: Map<String, String>.from(json['relationships'] ?? {}),
-      memories:
-          (json['memories'] as List<dynamic>?)?.map((e) => Memory.fromJson(e as Map<String, dynamic>)).toList() ?? [],
       trust: json['trust'] as int? ?? 50,
       interrogationsRemaining: json['interrogations_remaining'] as int? ?? maxInterrogations,
     );
@@ -196,10 +135,7 @@ class Character {
     'profession': profession,
     'personality': personality,
     if (gender != null) 'gender': gender,
-    'knowledge': knowledge.toJson(),
-    'secrets': secrets,
     'relationships': relationships,
-    'memories': memories.map((m) => m.toJson()).toList(),
     'trust': trust,
     'interrogations_remaining': interrogationsRemaining,
   };

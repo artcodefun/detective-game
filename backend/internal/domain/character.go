@@ -19,32 +19,24 @@ const (
 )
 
 type Memory struct {
-	ID        uuid.UUID `bson:"id"`
-	Content   string    `bson:"content"`
-	IsTrue    bool      `bson:"is_true"`
-	Timestamp string    `bson:"timestamp"`
-}
-
-type CharacterKnowledge struct {
-	KnownFacts   []string `bson:"known_facts"`
-	PartialFacts []string `bson:"partial_facts"`
-	FalseBeliefs []string `bson:"false_beliefs"`
+	Content   string `bson:"content"`
+	Timestamp string `bson:"timestamp"`
 }
 
 type Character struct {
-	ID                      uuid.UUID          `bson:"_id"`
-	SessionID               uuid.UUID          `bson:"session_id"`
-	Name                    string             `bson:"name"`
-	Age                     int                `bson:"age"`
-	Profession              string             `bson:"profession"`
-	Personality             string             `bson:"personality"`
-	Gender                  Gender             `bson:"gender"`
-	Knowledge               CharacterKnowledge `bson:"knowledge"`
-	Secrets                 []string           `bson:"secrets"`
-	Relationships           map[string]string  `bson:"relationships"`
-	Memories                []Memory           `bson:"memories"`
-	Trust                   int                `bson:"trust"`
-	InterrogationsRemaining int                `bson:"interrogations_remaining"`
+	ID                      uuid.UUID         `bson:"_id"`
+	SessionID               uuid.UUID         `bson:"session_id"`
+	Name                    string            `bson:"name"`
+	Age                     int               `bson:"age"`
+	Profession              string            `bson:"profession"`
+	Personality             string            `bson:"personality"`
+	Gender                  Gender            `bson:"gender"`
+	Opinions                []string          `bson:"opinions"`
+	Secrets                 []string          `bson:"secrets"`
+	Relationships           map[string]string `bson:"relationships"`
+	Memories                []Memory          `bson:"memories"`
+	Trust                   int               `bson:"trust"`
+	InterrogationsRemaining int               `bson:"interrogations_remaining"`
 }
 
 const (

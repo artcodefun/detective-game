@@ -170,32 +170,8 @@ func CharacterFromDomain(c domain.Character) Character {
 		Profession:              c.Profession,
 		Personality:             c.Personality,
 		Gender:                  string(c.Gender),
-		Knowledge:               CharacterKnowledgeFromDomain(c.Knowledge),
-		Secrets:                 c.Secrets,
 		Relationships:           c.Relationships,
-		Memories:                MemoriesFromDomain(c.Memories),
 		Trust:                   c.Trust,
 		InterrogationsRemaining: c.InterrogationsRemaining,
 	}
-}
-
-func CharacterKnowledgeFromDomain(k domain.CharacterKnowledge) CharacterKnowledge {
-	return CharacterKnowledge{
-		KnownFacts:   k.KnownFacts,
-		PartialFacts: k.PartialFacts,
-		FalseBeliefs: k.FalseBeliefs,
-	}
-}
-
-func MemoriesFromDomain(memories []domain.Memory) []Memory {
-	out := make([]Memory, len(memories))
-	for i, m := range memories {
-		out[i] = Memory{
-			ID:        m.ID,
-			Content:   m.Content,
-			IsTrue:    m.IsTrue,
-			Timestamp: m.Timestamp,
-		}
-	}
-	return out
 }

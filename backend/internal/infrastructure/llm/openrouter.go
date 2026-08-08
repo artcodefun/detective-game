@@ -104,7 +104,6 @@ func (c *OpenRouterClient) chat(ctx context.Context, messages []chatMessage, jso
 
 type llmMemory struct {
 	Content   string `json:"content"`
-	IsTrue    bool   `json:"is_true"`
 	Timestamp string `json:"timestamp"`
 }
 
@@ -115,9 +114,7 @@ type llmCharacter struct {
 	Profession    string            `json:"profession"`
 	Personality   string            `json:"personality"`
 	Gender        string            `json:"gender"`
-	KnownFacts    []string          `json:"known_facts"`
-	PartialFacts  []string          `json:"partial_facts"`
-	FalseBeliefs  []string          `json:"false_beliefs"`
+	Opinions      []string          `json:"opinions"`
 	Secrets       []string          `json:"secrets"`
 	Relationships map[string]string `json:"relationships"`
 	Memories      []llmMemory       `json:"memories"`
@@ -179,13 +176,11 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
       "profession": "профессия",
       "personality": "описание характера и манеры речи (2-3 предложения)",
       "gender": "male или female",
-      "known_facts": ["факт, который персонаж знает точно"],
-      "partial_facts": ["факт, известный частично"],
-      "false_beliefs": ["ложное убеждение"],
+      "opinions": ["мнение или предположение персонажа"],
       "secrets": ["секрет"],
       "relationships": {"2": "описание отношений с персонажем 2"},
       "memories": [
-        {"content": "воспоминание", "is_true": true, "timestamp": "21:00"}
+        {"content": "субъективное воспоминание персонажа", "timestamp": "21:00"}
       ],
       "trust": 55
     }
@@ -201,19 +196,43 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
 }
 
 === ТАЙМЛАЙН ===
-Это ОБЪЕКТИВНАЯ хроника событий, известная только тебе (игрок её не видит). Она не должна быть "отчётом" — это истина, что происходило на самом деле. Должен содержать:
-- 8-12 событий в хронологическом порядке
-- Каждое появление/исчезновение значимой улики ДОЛЖНО быть в таймлайне (кто и когда оставил предмет, передвинул, спрятал)
-- Перемещения всех персонажей в ключевые моменты
-- Момент преступления с указанием убийцы
-- Момент обнаружения тела
-- events — конкретные действия, а не "персонаж нервничал"
+Это ПОЛНАЯ ОБЪЕКТИВНАЯ ХРОНИКА мира, известная только тебе. Это не отчёт
+криминалистов и не загадка: в ней нет неизвестных обстоятельств, догадок,
+формулировок «было найдено» без объяснения и скрытых причин.
+
+Дай 14-20 событий в строгом хронологическом порядке. Каждое event — ясное,
+развёрнутое описание факта: КТО совершил действие, ЧТО именно сделал, ГДЕ,
+с каким предметом и к чему это привело. Указывай конкретные локации в тексте.
+Не пиши «предмет появился», «улика найдена», «смартфон упал» без действующего
+лица и причины.
+
+Таймлайн обязан содержать:
+- перемещения и существенные действия всех пяти персонажей;
+- подготовку преступления, сам момент преступления, действия преступника
+  после него и обнаружение тела конкретным человеком;
+- полную причинную цепочку для КАЖДОЙ релевантной улики: кто и когда создал,
+  принёс, использовал, переместил, спрятал или оставил предмет; где предмет
+  оказался к началу расследования; кто его затем увидел или нашёл;
+- все инсценировки, ложные следы и попытки отвлечь подозрения: кто их создал,
+  зачем и почему выбранная деталь должна вести к конкретной версии;
+- непрерывную, непротиворечивую последовательность. Не меняй владельца,
+  местоположение, назначение или автора предмета в других частях JSON.
+
+Таймлайн — источник истины для evidence и memories. Ни одна релевантная улика,
+никакое действие из memories или secrets не может появиться, если его нет в
+timeline. Исключение только для явно случайной, не связанной с делом улики.
 
 === УЛИКИ (evidence) ===
 Это предметы, найденные НА МЕСТЕ ПРЕСТУПЛЕНИЯ. Только то, что криминалист видит при первом осмотре:
 - physical: орудие убийства, одежда со следами, разбитые предметы, следы обуви, волокна ткани, бокалы, пузырьки
 - digital: телефон, ноутбук, флешка, диск — САМИ УСТРОЙСТВА. НЕ ИХ СОДЕРЖИМОЕ. Контент устройств — предмет действий игрока (call_history, transaction_check и т.д.)
 - document: записки, письма, финансовые отчёты, дневники, контракты
+
+Сначала закончи timeline, затем создавай evidence ТОЛЬКО из предметов и следов,
+которые уже упомянуты в timeline. Описание улики обязано совпадать с её
+происхождением, владельцем, местом и состоянием в timeline. Не меняй автора
+записки, владельца одежды или расположение предмета. Если предмет подброшен
+для отвода подозрений, timeline должен объяснять, на кого и почему он указывает.
 
 Примеры того, что НЕЛЬЗЯ класть в evidence:
 - ❌ "запись с камеры наблюдения" (это результат camera_review)
@@ -241,10 +260,20 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
 - Генерируй 5 УНИКАЛЬНЫХ персонажей с разными именами, возрастами и профессиями
 - personality — подробное описание характера и манеры речи (2-3 предложения)
 - gender — "male" или "female"
-- Все значимые улики ДОЛЖНЫ появляться в таймлайне
+- Все значимые улики ДОЛЖНЫ появляться в timeline с полной причинной цепочкой
 - relationships — ключ это номер персонажа, значение — описание отношений
 - secrets — у каждого персонажа должен быть хотя бы один секрет
-- memories — 1-2 воспоминания на персонажа
+- memories — 8-12 субъективных воспоминаний на персонажа: события до преступления,
+  момент преступления и события после него, только с точки зрения этого персонажа
+- opinions — 2-5 мнений или предположений персонажа, без маркировки «истина/ложь»
+- secrets — 2-4 вещи, которые персонаж намеренно скрывает
+- Воспоминания должны быть основаны на timeline, но отражать только то, что персонаж
+  мог видеть, слышать, сделать или узнать. Не давай персонажу чужие знания.
+- Не добавляй в memories, opinions или secrets действий и предметов, которых нет
+  в timeline. Проверяй совпадение времени, мест, авторов и владельцев предметов.
+- Для персонажа, чей id равен perpetrator_id, обязательно включи в memories события
+  убийства и сокрытия следов от его собственной точки зрения. В secrets обязательно
+  укажи, что он убил жертву, а также важные действия по сокрытию преступления.
 - trust — начальное доверие к детективу (0-100). У убийцы низкое (10-30)
 - Всего 5 персонажей и ровно 5 улик
 - ВАЖНО: проверь, что все JSON-массивы и объекты корректно закрыты. Не оставляй ключи без значений.`
@@ -281,25 +310,19 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
 		var memories []domain.Memory
 		for _, m := range lc.Memories {
 			memories = append(memories, domain.Memory{
-				ID:        uuid.New(),
 				Content:   m.Content,
-				IsTrue:    m.IsTrue,
 				Timestamp: m.Timestamp,
 			})
 		}
 
 		domainChars[i] = domain.Character{
-			ID:          charID,
-			Name:        lc.Name,
-			Age:         lc.Age,
-			Profession:  lc.Profession,
-			Personality: lc.Personality,
-			Gender:      domain.Gender(lc.Gender),
-			Knowledge: domain.CharacterKnowledge{
-				KnownFacts:   lc.KnownFacts,
-				PartialFacts: lc.PartialFacts,
-				FalseBeliefs: lc.FalseBeliefs,
-			},
+			ID:                      charID,
+			Name:                    lc.Name,
+			Age:                     lc.Age,
+			Profession:              lc.Profession,
+			Personality:             lc.Personality,
+			Gender:                  domain.Gender(lc.Gender),
+			Opinions:                lc.Opinions,
 			Secrets:                 lc.Secrets,
 			Relationships:           lc.Relationships,
 			Memories:                memories,
@@ -338,7 +361,7 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
 		}
 	}
 
-	caseName, caseBrief := c.generateCaseBrief(ctx, domainChars, llmResp.Crime, llmResp.Evidence)
+	caseName, caseBrief := c.generateCaseBrief(ctx, domainChars, llmResp.Crime, llmResp.Evidence, llmResp.Timeline)
 
 	return &ports.ScenarioOutput{
 		CaseName:  caseName,
@@ -357,7 +380,7 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.Scenari
 	}, nil
 }
 
-func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain.Character, crime llmCrime, evidence []llmEvidence) (string, string) {
+func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain.Character, crime llmCrime, evidence []llmEvidence, timeline []llmTimelineEntry) (string, string) {
 	var charList strings.Builder
 	for _, ch := range chars {
 		charList.WriteString(fmt.Sprintf("- %s, %d лет, %s\n", ch.Name, ch.Age, ch.Profession))
@@ -366,6 +389,10 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 	var evList strings.Builder
 	for _, ev := range evidence {
 		evList.WriteString(fmt.Sprintf("- %s: %s\n", ev.Name, ev.Description))
+	}
+	var timelineList strings.Builder
+	for _, entry := range timeline {
+		timelineList.WriteString(fmt.Sprintf("- %s — %s\n", entry.Time, entry.Event))
 	}
 
 	caseNumber := rand.Intn(9000) + 1000
@@ -382,6 +409,14 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 %s
 Улики:
 %s
+Объективная хронология:
+%s
+
+КРИТИЧЕСКИ ВАЖНО: хронология — единственный источник фактов. Не добавляй в
+документ ни людей, ни место, ни адрес, ни время, ни предметы, ни обстоятельства,
+которых нет в контексте. Не противоречь хронологии и не раскрывай имя преступника,
+его мотив или внутренние действия, если это не является открытым фактом из списка
+улик. Документ должен описывать только то, что доступно следствию на старте.
 
 Верни JSON:
 {
@@ -393,7 +428,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 # Дело №%d
 
-**Место преступления:** [придумай адрес]
+**Место преступления:** [используй только локацию из хронологии; не придумывай адрес]
 
 **Предполагаемое время:** %s
 
@@ -401,7 +436,8 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 ## Обстоятельства
 
-[2-3 абзаца: где найдено тело, в каком состоянии, что заметили криминалисты]
+[2-3 абзаца: только обстоятельства, которые следствие может установить по
+хронологии и списку улик; не добавляй новые факты]
 
 ## Список подозреваемых
 
@@ -416,7 +452,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 
 *Дата открытия:* [сегодняшняя дата]`,
 		crime.Victim, crime.TimeOfCrime, crime.Method, crime.Motive,
-		charList.String(), evList.String(), caseNumber, crime.TimeOfCrime,
+		charList.String(), evList.String(), timelineList.String(), caseNumber, crime.TimeOfCrime,
 	)
 
 	content, err := c.chat(ctx, []chatMessage{
@@ -438,6 +474,18 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 	return resp.CaseName, resp.CaseBrief
 }
 
+func formatMemories(memories []domain.Memory) string {
+	if len(memories) == 0 {
+		return "нет записей"
+	}
+
+	var b strings.Builder
+	for _, memory := range memories {
+		fmt.Fprintf(&b, "- [%s] %s\n", memory.Timestamp, memory.Content)
+	}
+	return b.String()
+}
+
 func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character domain.Character, playerMessage string) (*ports.LlmInterrogationResponse, error) {
 	systemPrompt := fmt.Sprintf(`Ты — персонаж в детективной игре. Отвечай в соответствии с характером и знаниями.
 
@@ -447,10 +495,9 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character
 Характер: %s
 Текущий уровень доверия к следователю: %d из 100.
 
-Известные факты: %s
-Частично известные факты: %s
-Ложные убеждения: %s
+Мнения и предположения: %s
 Секреты: %s
+Воспоминания: %s
 
 ВАЖНО: доверие определяет ТОН и ОТКРОВЕННОСТЬ ответа. Это главный параметр.
 
@@ -469,10 +516,9 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character
 		character.Profession,
 		character.Personality,
 		character.Trust,
-		strings.Join(character.Knowledge.KnownFacts, "; "),
-		strings.Join(character.Knowledge.PartialFacts, "; "),
-		strings.Join(character.Knowledge.FalseBeliefs, "; "),
+		strings.Join(character.Opinions, "; "),
 		strings.Join(character.Secrets, "; "),
+		formatMemories(character.Memories),
 	)
 
 	content, err := c.chat(ctx, []chatMessage{

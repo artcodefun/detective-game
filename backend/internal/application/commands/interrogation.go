@@ -84,6 +84,16 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 	}
 
 	char.ApplyAttitudeDelta(resp.AttitudeDelta)
+	char.Memories = append(char.Memories,
+		domain.Memory{
+			Content:   "Детектив спросил: " + message,
+			Timestamp: time.Now().Format(time.RFC3339),
+		},
+		domain.Memory{
+			Content:   char.Name + " ответил: " + resp.Answer,
+			Timestamp: time.Now().Format(time.RFC3339),
+		},
+	)
 
 	npcMsg := domain.ChatMessage{
 		ID:              uuid.New(),
