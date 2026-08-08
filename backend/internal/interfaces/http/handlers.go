@@ -196,7 +196,13 @@ func (h *Handlers) CreateInterrogation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inter, err := h.Interrogation.Create(r.Context(), actor, body.CharacterID)
+	interID, err := h.Interrogation.Create(r.Context(), actor, body.CharacterID)
+	if err != nil {
+		writeAppError(w, err)
+		return
+	}
+
+	inter, err := h.Chat.GetInterrogation(r.Context(), actor, interID)
 	if err != nil {
 		writeAppError(w, err)
 		return

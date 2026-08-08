@@ -22,34 +22,34 @@ func NewInterrogationCommands(sessions ports.SessionRepository, interrogations p
 	return &InterrogationCommands{Sessions: sessions, Interrogations: interrogations, Characters: chars, Chat: chat, LLM: llm}
 }
 
-func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (*domain.Interrogation, error) {
+func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
 	active, err := c.Interrogations.FindActiveBySession(ctx, actor.SessionID)
 	if err != nil {
-		return nil, application.WrapError(err)
+		return uuid.Nil, application.WrapError(err)
 	}
 	if active != nil {
-		return nil, application.NewAppError(application.KindConflict, "active_interrogation_exists")
+		return uuid.Nil, application.NewAppError(application.KindConflict, "active_interrogation_exists")
 	}
 
 	char, err := c.Characters.FindCharacterByID(ctx, actor.SessionID, characterID)
 	if err != nil {
-		return nil, application.WrapError(err)
+		return uuid.Nil, application.WrapError(err)
 	}
 	if !char.CanInterrogate() {
-		return nil, application.NewAppError(application.KindConflict, "no_interrogations_left")
+		return uuid.Nil, application.NewAppError(application.KindConflict, "no_interrogations_left")
 	}
 
 	char.DecrementInterrogation()
 	if err := c.Characters.UpdateCharacter(ctx, char); err != nil {
-		return nil, application.WrapError(err)
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	inter := domain.NewInterrogation(actor.SessionID, characterID)
 	if err := c.Interrogations.CreateInterrogation(ctx, inter); err != nil {
-		return nil, application.WrapError(err)
+		return uuid.Nil, application.WrapError(err)
 	}
 
-	return inter, nil
+	return inter.ID, nil
 }
 
 func (c *InterrogationCommands) AddMessage(ctx context.Context, actor application.Actor, interrogationID uuid.UUID, message string) (uuid.UUID, error) {

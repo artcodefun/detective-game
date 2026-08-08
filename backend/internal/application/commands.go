@@ -12,7 +12,7 @@ type ScenarioCommands interface {
 }
 
 type InterrogationCommands interface {
-	Create(ctx context.Context, actor Actor, characterID uuid.UUID) (*domain.Interrogation, error)
+	Create(ctx context.Context, actor Actor, characterID uuid.UUID) (interrogationID uuid.UUID, err error)
 	AddMessage(ctx context.Context, actor Actor, interrogationID uuid.UUID, message string) (messageID uuid.UUID, err error)
 	Complete(ctx context.Context, actor Actor, interrogationID uuid.UUID) error
 }
