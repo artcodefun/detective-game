@@ -272,6 +272,9 @@ crime, timeline, characters и evidence.
 - perpetrator_id — номер персонажа-убийцы (совпадает с characters.id)
 - timeline[].character_id — номер персонажа или null
 - Генерируй 5 УНИКАЛЬНЫХ персонажей с разными именами, возрастами и профессиями
+- victim — отдельный человек, не входящий в список characters. Все пять characters
+  должны быть живыми подозреваемыми, доступными для допроса. Никогда не добавляй
+  жертву в characters.
 - personality — подробное описание характера и манеры речи (2-3 предложения)
 - gender — "male" или "female"
 - Все значимые улики ДОЛЖНЫ появляться в timeline с полной причинной цепочкой
@@ -304,7 +307,6 @@ crime, timeline, characters и evidence.
 			return nil, fmt.Errorf("parse scenario: %w\n%s", err, content)
 		}
 	}
-
 	private, err := c.generatePrivateCharacterData(ctx, llmResp)
 	if err != nil {
 		return nil, fmt.Errorf("generate private character data: %w", err)
