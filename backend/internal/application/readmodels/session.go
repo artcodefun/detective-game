@@ -15,4 +15,5 @@ type Session struct {
 	Phase        string      `json:"phase"`
 	GameResult   *GameResult `json:"game_result,omitempty"`
 	CreatedAt    time.Time   `json:"created_at"`
+	FinishedAt   *time.Time  `json:"finished_at,omitempty"`
 }

@@ -24,6 +24,7 @@ type Session struct {
 	Phase        GamePhase   `bson:"phase"`
 	GameResult   *GameResult `bson:"game_result,omitempty"`
 	CreatedAt    time.Time   `bson:"created_at"`
+	FinishedAt   *time.Time  `bson:"finished_at,omitempty"`
 }
 
 const MaxActionPoints = 5
@@ -41,6 +42,8 @@ func (s *Session) SpendActionPoints(amount int) bool {
 }
 
 func (s *Session) Finish(result *GameResult) {
+	now := time.Now()
 	s.GameResult = result
 	s.Phase = GamePhaseFinished
+	s.FinishedAt = &now
 }

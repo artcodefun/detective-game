@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type ChronologyRepo struct {
@@ -25,8 +26,26 @@ func (r *ChronologyRepo) AppendChronologyEntry(ctx context.Context, sessionID uu
 	return err
 }
 
+func (r *ChronologyRepo) AppendNotebookEntries(ctx context.Context, sessionID, originID uuid.UUID, entries []domain.NotebookEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	result, err := r.coll.UpdateOne(
+		ctx,
+		bson.M{"session_id": sessionID, "origin_id": originID},
+		bson.M{"$push": bson.M{"details": bson.M{"$each": entries}}},
+	)
+	if err != nil {
+		return fmt.Errorf("append notebook entries: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("append notebook entries: %w", ports.ErrNotFound)
+	}
+	return nil
+}
+
 func (r *ChronologyRepo) FindChronologyBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.ChronologyEntry, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID})
+	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID}, options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}}))
 	if err != nil {
 		return nil, fmt.Errorf("find chronology: %w", err)
 	}
@@ -47,7 +66,7 @@ func (r *ChronologyRepo) FindChronologyBySession(ctx context.Context, sessionID 
 }
 
 func (r *ChronologyRepo) UpdateChronologyEntry(ctx context.Context, sessionID uuid.UUID, chronologyID uuid.UUID, entryID uuid.UUID, tags []domain.NoteTag, note *string) error {
-	filter := bson.M{"session_id": sessionID, "_id": chronologyID, "details.id": entryID}
+	filter := bson.M{"session_id": sessionID, "id": chronologyID, "details.id": entryID}
 	update := bson.M{
 		"$set": bson.M{
 			"details.$.user_tags": tags,

@@ -16,10 +16,11 @@ type ScenarioCommands struct {
 	LLM        ports.LlmService
 	Characters ports.CharacterRepository
 	Evidence   ports.EvidenceRepository
+	Chronology ports.ChronologyRepository
 }
 
-func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository) *ScenarioCommands {
-	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev}
+func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, chronology ports.ChronologyRepository) *ScenarioCommands {
+	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology}
 }
 
 func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
@@ -70,6 +71,11 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 		if err := c.Evidence.AppendEvidence(ctx, sessionID, &output.Evidence[i]); err != nil {
 			return uuid.Nil, application.WrapError(err)
 		}
+	}
+
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeCaseStarted, &sessionID, "Начало расследования", session.CreatedAt)
+	if err := c.Chronology.AppendChronologyEntry(ctx, sessionID, chronology); err != nil {
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	return sessionID, nil

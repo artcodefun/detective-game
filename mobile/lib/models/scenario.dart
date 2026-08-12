@@ -149,6 +149,7 @@ class Session {
   final String phase;
   final GameResult? gameResult;
   final DateTime createdAt;
+  final DateTime? finishedAt;
 
   const Session({
     required this.id,
@@ -158,6 +159,7 @@ class Session {
     this.phase = 'idle',
     this.gameResult,
     required this.createdAt,
+    this.finishedAt,
   });
 
   factory Session.fromJson(Map<String, dynamic> json) {
@@ -169,6 +171,7 @@ class Session {
       phase: json['phase'] as String? ?? 'idle',
       gameResult: json['game_result'] != null ? GameResult.fromJson(json['game_result'] as Map<String, dynamic>) : null,
       createdAt: DateTime.parse(json['created_at'] as String),
+      finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at'] as String) : null,
     );
   }
 
@@ -180,5 +183,6 @@ class Session {
     'phase': phase,
     if (gameResult != null) 'game_result': gameResult!.toJson(),
     'created_at': createdAt.toIso8601String(),
+    if (finishedAt != null) 'finished_at': finishedAt!.toIso8601String(),
   };
 }

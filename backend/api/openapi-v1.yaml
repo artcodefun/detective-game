@@ -720,6 +720,10 @@ components:
         created_at:
           type: string
           format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          description: Время завершения расследования
       required:
         - id
         - user_id
@@ -934,6 +938,9 @@ components:
       properties:
         id:
           $ref: "#/components/schemas/UUID"
+        origin_id:
+          $ref: "#/components/schemas/UUID"
+          description: ID исходного объекта события
         event_type:
           type: string
           description: Тип события (interrogation, analysis, etc.)

@@ -1,9 +1,10 @@
 import 'notebook.dart';
 
-enum ChronologyEventType { caseStarted, interrogation, labAnalysis, alibiCheck, cameraReview, transactionCheck }
+enum ChronologyEventType { caseStarted, interrogation, labAnalysis, alibiCheck, cameraReview, transactionCheck, finalReport }
 
 class ChronologyEntry {
   final String id;
+  final String? originId;
   final ChronologyEventType eventType;
   final String title;
   final DateTime timestamp;
@@ -11,6 +12,7 @@ class ChronologyEntry {
 
   const ChronologyEntry({
     required this.id,
+    this.originId,
     required this.eventType,
     required this.title,
     required this.timestamp,
@@ -31,11 +33,14 @@ class ChronologyEntry {
         return 'запись с камер';
       case ChronologyEventType.transactionCheck:
         return 'транзакция';
+      case ChronologyEventType.finalReport:
+        return 'финальный отчёт';
     }
   }
 
   ChronologyEntry copyWith({
     String? id,
+    String? originId,
     ChronologyEventType? eventType,
     String? title,
     DateTime? timestamp,
@@ -43,6 +48,7 @@ class ChronologyEntry {
   }) {
     return ChronologyEntry(
       id: id ?? this.id,
+      originId: originId ?? this.originId,
       eventType: eventType ?? this.eventType,
       title: title ?? this.title,
       timestamp: timestamp ?? this.timestamp,
@@ -62,6 +68,8 @@ class ChronologyEntry {
         return ChronologyEventType.cameraReview;
       case 'transaction_check':
         return ChronologyEventType.transactionCheck;
+      case 'final_report':
+        return ChronologyEventType.finalReport;
       default:
         return ChronologyEventType.interrogation;
     }
@@ -70,6 +78,7 @@ class ChronologyEntry {
   factory ChronologyEntry.fromJson(Map<String, dynamic> json) {
     return ChronologyEntry(
       id: json['id'] as String,
+      originId: json['origin_id'] as String?,
       eventType: _eventTypeFromString(json['event_type'] as String),
       title: json['title'] as String,
       timestamp: DateTime.parse(json['timestamp'] as String),
@@ -82,6 +91,7 @@ class ChronologyEntry {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (originId != null) 'origin_id': originId,
       'event_type': eventType.name,
       'title': title,
       'timestamp': timestamp.toIso8601String(),

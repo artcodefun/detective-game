@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type ChronologyReadRepo struct {
@@ -20,7 +21,7 @@ func NewChronologyReadRepo(db *mongo.Database) *ChronologyReadRepo {
 }
 
 func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ChronologyEntry, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID})
+	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID}, options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}}))
 	if err != nil {
 		return nil, fmt.Errorf("list chronology: %w", err)
 	}

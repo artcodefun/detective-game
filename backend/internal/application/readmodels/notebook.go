@@ -8,6 +8,7 @@ import (
 
 type ChronologyEntry struct {
 	ID        uuid.UUID       `json:"id"`
+	OriginID  *uuid.UUID      `json:"origin_id,omitempty"`
 	EventType string          `json:"event_type"`
 	Title     string          `json:"title"`
 	Timestamp time.Time       `json:"timestamp"`

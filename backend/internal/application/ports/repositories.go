@@ -54,6 +54,7 @@ type ActionReportRepository interface {
 
 type ChronologyRepository interface {
 	AppendChronologyEntry(ctx context.Context, sessionID uuid.UUID, entry *domain.ChronologyEntry) error
+	AppendNotebookEntries(ctx context.Context, sessionID, originID uuid.UUID, entries []domain.NotebookEntry) error
 	FindChronologyBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.ChronologyEntry, error)
 	UpdateChronologyEntry(ctx context.Context, sessionID uuid.UUID, chronologyID uuid.UUID, entryID uuid.UUID, tags []domain.NoteTag, note *string) error
 }

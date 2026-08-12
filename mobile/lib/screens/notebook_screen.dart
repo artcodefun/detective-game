@@ -348,6 +348,8 @@ class _ChronologyCardState extends State<_ChronologyCard> {
         return Icons.videocam;
       case ChronologyEventType.transactionCheck:
         return Icons.account_balance;
+      case ChronologyEventType.finalReport:
+        return Icons.assignment_turned_in;
     }
   }
 

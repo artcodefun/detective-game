@@ -16,10 +16,11 @@ type InterrogationCommands struct {
 	Characters     ports.CharacterRepository
 	Chat           ports.ChatMessageRepository
 	LLM            ports.LlmService
+	Chronology     ports.ChronologyRepository
 }
 
-func NewInterrogationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, chars ports.CharacterRepository, chat ports.ChatMessageRepository, llm ports.LlmService) *InterrogationCommands {
-	return &InterrogationCommands{Sessions: sessions, Interrogations: interrogations, Characters: chars, Chat: chat, LLM: llm}
+func NewInterrogationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, chars ports.CharacterRepository, chat ports.ChatMessageRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *InterrogationCommands {
+	return &InterrogationCommands{Sessions: sessions, Interrogations: interrogations, Characters: chars, Chat: chat, LLM: llm, Chronology: chronology}
 }
 
 func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
@@ -46,6 +47,10 @@ func (c *InterrogationCommands) Create(ctx context.Context, actor application.Ac
 
 	inter := domain.NewInterrogation(actor.SessionID, characterID)
 	if err := c.Interrogations.CreateInterrogation(ctx, inter); err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeInterrogation, &inter.ID, "Допрос: "+char.Name, inter.CreatedAt)
+	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
@@ -111,6 +116,22 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 
 	if err := c.Characters.UpdateCharacter(ctx, char); err != nil {
 		return uuid.Nil, application.WrapError(err)
+	}
+
+	details := make([]domain.NotebookEntry, 0, len(resp.Statements))
+	for _, statement := range resp.Statements {
+		details = append(details, domain.NotebookEntry{
+			ID:          uuid.New(),
+			Type:        domain.NotebookEntryTypeStatement,
+			CharacterID: &inter.CharacterID,
+			Description: statement,
+			Timestamp:   time.Now(),
+		})
+	}
+	if len(details) > 0 {
+		if err := c.Chronology.AppendNotebookEntries(ctx, actor.SessionID, interrogationID, details); err != nil {
+			return uuid.Nil, application.WrapError(err)
+		}
 	}
 
 	return npcMsg.ID, nil

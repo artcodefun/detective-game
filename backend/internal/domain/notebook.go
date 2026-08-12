@@ -44,15 +44,41 @@ const (
 	ChronologyEventTypeAlibiCheck       ChronologyEventType = "alibi_check"
 	ChronologyEventTypeCameraReview     ChronologyEventType = "camera_review"
 	ChronologyEventTypeTransactionCheck ChronologyEventType = "transaction_check"
+	ChronologyEventTypeFinalReport      ChronologyEventType = "final_report"
 )
+
+func ChronologyEventTypeFromAction(action ActionType) ChronologyEventType {
+	switch action {
+	case ActionTypeAlibiCheck:
+		return ChronologyEventTypeAlibiCheck
+	case ActionTypeCameraReview:
+		return ChronologyEventTypeCameraReview
+	case ActionTypeTransactionCheck:
+		return ChronologyEventTypeTransactionCheck
+	default:
+		return ChronologyEventTypeLabAnalysis
+	}
+}
 
 type ChronologyEntry struct {
 	ID        uuid.UUID           `bson:"id"`
 	SessionID uuid.UUID           `bson:"session_id"`
 	EventType ChronologyEventType `bson:"event_type"`
+	OriginID  *uuid.UUID          `bson:"origin_id,omitempty"`
 	Title     string              `bson:"title"`
 	Timestamp time.Time           `bson:"timestamp"`
 	Details   []NotebookEntry     `bson:"details"`
+}
+
+func NewChronologyEntry(eventType ChronologyEventType, originID *uuid.UUID, title string, timestamp time.Time) *ChronologyEntry {
+	return &ChronologyEntry{
+		ID:        uuid.New(),
+		EventType: eventType,
+		OriginID:  originID,
+		Title:     title,
+		Timestamp: timestamp,
+		Details:   []NotebookEntry{},
+	}
 }
 
 type ActionType string

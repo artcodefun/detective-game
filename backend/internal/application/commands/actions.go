@@ -11,13 +11,14 @@ import (
 )
 
 type ActionCommands struct {
-	Sessions ports.SessionRepository
-	Reports  ports.ActionReportRepository
-	LLM      ports.LlmService
+	Sessions   ports.SessionRepository
+	Reports    ports.ActionReportRepository
+	LLM        ports.LlmService
+	Chronology ports.ChronologyRepository
 }
 
-func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, llm ports.LlmService) *ActionCommands {
-	return &ActionCommands{Sessions: sessions, Reports: reports, LLM: llm}
+func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *ActionCommands {
+	return &ActionCommands{Sessions: sessions, Reports: reports, LLM: llm, Chronology: chronology}
 }
 
 type actionRequest struct {
@@ -59,7 +60,31 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFromAction(req.kind), &report.ID, actionTitle(req.kind), report.Timestamp)
+	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+
 	return report.ID, nil
+}
+
+func actionTitle(action domain.ActionType) string {
+	switch action {
+	case domain.ActionTypeDNAAnalysis:
+		return "Анализ ДНК"
+	case domain.ActionTypeFingerprints:
+		return "Проверка отпечатков"
+	case domain.ActionTypeAlibiCheck:
+		return "Проверка алиби"
+	case domain.ActionTypeCameraReview:
+		return "Просмотр записей с камер"
+	case domain.ActionTypeCallHistory:
+		return "История звонков"
+	case domain.ActionTypeTransactionCheck:
+		return "Проверка транзакций"
+	default:
+		return string(action)
+	}
 }
 
 func (c *ActionCommands) DNAAnalysis(ctx context.Context, actor application.Actor, evidenceID uuid.UUID) (uuid.UUID, error) {

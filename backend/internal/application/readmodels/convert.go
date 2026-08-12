@@ -14,6 +14,7 @@ func SessionFromDomain(session *domain.Session) *Session {
 		Phase:        string(session.Phase),
 		GameResult:   GameResultFromDomain(session.GameResult),
 		CreatedAt:    session.CreatedAt,
+		FinishedAt:   session.FinishedAt,
 	}
 }
 
@@ -130,6 +131,7 @@ func ChronologyEntryFromDomain(c *domain.ChronologyEntry) *ChronologyEntry {
 	}
 	return &ChronologyEntry{
 		ID:        c.ID,
+		OriginID:  c.OriginID,
 		EventType: string(c.EventType),
 		Title:     c.Title,
 		Timestamp: c.Timestamp,

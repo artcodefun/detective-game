@@ -10,12 +10,13 @@ import (
 )
 
 type EvaluationCommands struct {
-	Sessions ports.SessionRepository
-	LLM      ports.LlmService
+	Sessions   ports.SessionRepository
+	LLM        ports.LlmService
+	Chronology ports.ChronologyRepository
 }
 
-func NewEvaluationCommands(sessions ports.SessionRepository, llm ports.LlmService) *EvaluationCommands {
-	return &EvaluationCommands{Sessions: sessions, LLM: llm}
+func NewEvaluationCommands(sessions ports.SessionRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *EvaluationCommands {
+	return &EvaluationCommands{Sessions: sessions, LLM: llm, Chronology: chronology}
 }
 
 func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application.Actor, report domain.FinalReport) error {
@@ -43,7 +44,16 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 	}
 	session.Finish(result)
 
-	return application.WrapError(c.Sessions.Update(ctx, session))
+	if err := c.Sessions.Update(ctx, session); err != nil {
+		return application.WrapError(err)
+	}
+
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFinalReport, &actor.SessionID, "Финальный отчёт отправлен", *session.FinishedAt)
+	err = c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology)
+	if err != nil {
+		return application.WrapError(err)
+	}
+	return nil
 }
 
 func scoreReport(report domain.FinalReport, truth domain.Crime) *domain.ScoreBreakdown {
