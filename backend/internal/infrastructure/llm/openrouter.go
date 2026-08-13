@@ -161,7 +161,7 @@ type llmPrivateResponse struct {
 	Characters []llmPrivateCharacter `json:"characters"`
 }
 
-func (c *OpenRouterClient) GenerateScenario(ctx context.Context) (*ports.ScenarioOutput, error) {
+func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.Locale) (*ports.ScenarioOutput, error) {
 	systemPrompt := `Ты — генератор детективных сценариев для игры. Создай запутанное дело об убийстве.
 
 Верни ТОЛЬКО JSON, без текста до или после, без Markdown-форматирования:
@@ -286,6 +286,8 @@ crime, timeline, characters и evidence.
 - Всего 5 персонажей и ровно 5 улик
 - ВАЖНО: проверь, что все JSON-массивы и объекты корректно закрыты. Не оставляй ключи без значений.`
 
+	systemPrompt += languageInstruction(locale)
+
 	content, err := c.chat(ctx, []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: "Сгенерируй детективный сценарий."},
@@ -307,7 +309,7 @@ crime, timeline, characters и evidence.
 			return nil, fmt.Errorf("parse scenario: %w\n%s", err, content)
 		}
 	}
-	private, err := c.generatePrivateCharacterData(ctx, llmResp)
+	private, err := c.generatePrivateCharacterData(ctx, locale, llmResp)
 	if err != nil {
 		return nil, fmt.Errorf("generate private character data: %w", err)
 	}
@@ -378,7 +380,7 @@ crime, timeline, characters и evidence.
 		}
 	}
 
-	caseName, caseBrief := c.generateCaseBrief(ctx, domainChars, llmResp.Crime, llmResp.Evidence, llmResp.Timeline)
+	caseName, caseBrief := c.generateCaseBrief(ctx, locale, domainChars, llmResp.Crime, llmResp.Evidence, llmResp.Timeline)
 
 	return &ports.ScenarioOutput{
 		CaseName:  caseName,
@@ -397,7 +399,7 @@ crime, timeline, characters и evidence.
 	}, nil
 }
 
-func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, scenario llmScenarioResponse) (map[int]llmPrivateCharacter, error) {
+func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, locale domain.Locale, scenario llmScenarioResponse) (map[int]llmPrivateCharacter, error) {
 	contextJSON, err := json.Marshal(scenario)
 	if err != nil {
 		return nil, fmt.Errorf("marshal private character context: %w", err)
@@ -441,6 +443,8 @@ func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, sce
 - Не добавляй поля id или source в memories.
 - Проверь, что JSON корректно закрыт.`
 
+	systemPrompt += languageInstruction(locale)
+
 	messages := []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: "Сгенерируй приватные данные персонажей для этого сценария:\n" + string(contextJSON)},
@@ -471,7 +475,7 @@ func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, sce
 	return byID, nil
 }
 
-func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain.Character, crime llmCrime, evidence []llmEvidence, timeline []llmTimelineEntry) (string, string) {
+func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.Locale, chars []domain.Character, crime llmCrime, evidence []llmEvidence, timeline []llmTimelineEntry) (string, string) {
 	var charList strings.Builder
 	for _, ch := range chars {
 		charList.WriteString(fmt.Sprintf("- %s, %d лет, %s\n", ch.Name, ch.Age, ch.Profession))
@@ -559,10 +563,13 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, chars []domain
 	)
 
 	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Ты — помощник детектива. Генерируешь официальные документы."},
+		{Role: "system", Content: "Ты — помощник детектива. Генерируешь официальные документы." + languageInstruction(locale)},
 		{Role: "user", Content: briefPrompt},
 	}, true)
 	if err != nil {
+		if locale == domain.LocaleEN {
+			return fmt.Sprintf("Case #%d", caseNumber), "_document was not generated_"
+		}
 		return fmt.Sprintf("Дело №%d", caseNumber), "_документ не сгенерирован_"
 	}
 
@@ -589,7 +596,7 @@ func formatMemories(memories []domain.Memory) string {
 	return b.String()
 }
 
-func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character domain.Character, playerMessage string) (*ports.LlmInterrogationResponse, error) {
+func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, locale domain.Locale, character domain.Character, playerMessage string) (*ports.LlmInterrogationResponse, error) {
 	systemPrompt := fmt.Sprintf(`Ты — персонаж в детективной игре. Отвечай в соответствии с характером и знаниями.
 
 Имя: %s
@@ -624,6 +631,8 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character
 		formatMemories(character.Memories),
 	)
 
+	systemPrompt += languageInstruction(locale)
+
 	content, err := c.chat(ctx, []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: fmt.Sprintf(`Ответь на реплику следователя. Верни ТОЛЬКО JSON:
@@ -656,7 +665,7 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, character
 	}, nil
 }
 
-func (c *OpenRouterClient) EvaluateReport(ctx context.Context, playerReport domain.FinalReport, groundTruth domain.Crime) (*ports.LlmFeedbackResponse, error) {
+func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Locale, playerReport domain.FinalReport, groundTruth domain.Crime) (*ports.LlmFeedbackResponse, error) {
 	systemPrompt := fmt.Sprintf(`Ты оцениваешь финальный отчёт детектива. Вот что известно об убийстве на самом деле:
 
 Жертва: %s
@@ -682,6 +691,8 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, playerReport doma
 		groundTruth.Method,
 		groundTruth.TimeOfCrime,
 	)
+
+	systemPrompt += languageInstruction(locale)
 
 	content, err := c.chat(ctx, []chatMessage{
 		{Role: "system", Content: systemPrompt},
@@ -712,7 +723,7 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, playerReport doma
 	}, nil
 }
 
-func (c *OpenRouterClient) RunAction(ctx context.Context, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error) {
+func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error) {
 	var contextParts []string
 	if evidenceID != nil {
 		contextParts = append(contextParts, fmt.Sprintf("улика ID: %s", evidenceID))
@@ -739,7 +750,7 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, actionName string, evi
 	}
 
 	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу, на русском языке. Не используй JSON."},
+		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON." + languageInstruction(locale)},
 		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s. Контекст: %s. Верни результат в 2-3 предложениях.", label, strings.Join(contextParts, ", "))},
 	}, false)
 	if err != nil {
@@ -747,4 +758,11 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, actionName string, evi
 	}
 
 	return content, nil
+}
+
+func languageInstruction(locale domain.Locale) string {
+	if locale == domain.LocaleEN {
+		return "\n\nReturn every human-readable value in English."
+	}
+	return "\n\nВсе текстовые значения возвращай на русском языке."
 }

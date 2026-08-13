@@ -724,12 +724,19 @@ components:
           type: string
           format: date-time
           description: Время завершения расследования
+        content_locale:
+          type: string
+          description: Язык контента расследования, закреплённый при создании сессии
+          enum:
+            - ru
+            - en
       required:
         - id
         - user_id
         - action_points
         - phase
         - created_at
+        - content_locale
 
     Crime:
       type: object

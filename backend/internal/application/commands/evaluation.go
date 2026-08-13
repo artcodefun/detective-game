@@ -25,10 +25,10 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 		return application.WrapError(err)
 	}
 	if session.Phase == domain.GamePhaseFinished {
-		return application.NewAppError(application.KindConflict, "session_already_finished")
+		return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 	}
 
-	feedback, err := c.LLM.EvaluateReport(ctx, report, session.Crime)
+	feedback, err := c.LLM.EvaluateReport(ctx, session.ContentLocale, report, session.Crime)
 	if err != nil {
 		return application.WrapError(err)
 	}
@@ -48,7 +48,7 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 		return application.WrapError(err)
 	}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFinalReport, &actor.SessionID, "Финальный отчёт отправлен", *session.FinishedAt)
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFinalReport, &actor.SessionID, domain.T("chronology.final_report_submitted"), *session.FinishedAt)
 	err = c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology)
 	if err != nil {
 		return application.WrapError(err)

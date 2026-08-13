@@ -54,6 +54,7 @@ class ApiService {
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
+    'Accept-Language': 'ru',
     'X-User-ID': _userId,
     if (_sessionId != null) 'X-Session-ID': _sessionId!,
   };

@@ -27,7 +27,7 @@ type EvidenceQueries interface {
 }
 
 type ChronologyQueries interface {
-	GetChronology(ctx context.Context, actor Actor) ([]*readmodels.ChronologyEntry, error)
+	GetChronology(ctx context.Context, actor Actor) (*readmodels.Chronology, error)
 }
 
 type ChatQueries interface {

@@ -150,6 +150,7 @@ class Session {
   final GameResult? gameResult;
   final DateTime createdAt;
   final DateTime? finishedAt;
+  final String contentLocale;
 
   const Session({
     required this.id,
@@ -160,6 +161,7 @@ class Session {
     this.gameResult,
     required this.createdAt,
     this.finishedAt,
+    this.contentLocale = 'ru',
   });
 
   factory Session.fromJson(Map<String, dynamic> json) {
@@ -172,6 +174,7 @@ class Session {
       gameResult: json['game_result'] != null ? GameResult.fromJson(json['game_result'] as Map<String, dynamic>) : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       finishedAt: json['finished_at'] != null ? DateTime.parse(json['finished_at'] as String) : null,
+      contentLocale: json['content_locale'] as String? ?? 'ru',
     );
   }
 
@@ -184,5 +187,6 @@ class Session {
     if (gameResult != null) 'game_result': gameResult!.toJson(),
     'created_at': createdAt.toIso8601String(),
     if (finishedAt != null) 'finished_at': finishedAt!.toIso8601String(),
+    'content_locale': contentLocale,
   };
 }

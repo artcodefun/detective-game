@@ -65,12 +65,12 @@ type ChronologyEntry struct {
 	SessionID uuid.UUID           `bson:"session_id"`
 	EventType ChronologyEventType `bson:"event_type"`
 	OriginID  *uuid.UUID          `bson:"origin_id,omitempty"`
-	Title     string              `bson:"title"`
+	Title     Translation         `bson:"title_translation"`
 	Timestamp time.Time           `bson:"timestamp"`
 	Details   []NotebookEntry     `bson:"details"`
 }
 
-func NewChronologyEntry(eventType ChronologyEventType, originID *uuid.UUID, title string, timestamp time.Time) *ChronologyEntry {
+func NewChronologyEntry(eventType ChronologyEventType, originID *uuid.UUID, title Translation, timestamp time.Time) *ChronologyEntry {
 	return &ChronologyEntry{
 		ID:        uuid.New(),
 		EventType: eventType,
@@ -102,11 +102,12 @@ func (t ActionType) Cost() int {
 }
 
 type ActionReport struct {
-	ID          uuid.UUID  `bson:"_id"`
-	SessionID   uuid.UUID  `bson:"session_id"`
-	Type        ActionType `bson:"type"`
-	Body        string     `bson:"body"`
-	EvidenceID  *uuid.UUID `bson:"evidence_id,omitempty"`
-	CharacterID *uuid.UUID `bson:"character_id,omitempty"`
-	Timestamp   time.Time  `bson:"timestamp"`
+	ID          uuid.UUID   `bson:"_id"`
+	SessionID   uuid.UUID   `bson:"session_id"`
+	Type        ActionType  `bson:"type"`
+	Title       Translation `bson:"title_translation"`
+	Body        string      `bson:"body"`
+	EvidenceID  *uuid.UUID  `bson:"evidence_id,omitempty"`
+	CharacterID *uuid.UUID  `bson:"character_id,omitempty"`
+	Timestamp   time.Time   `bson:"timestamp"`
 }

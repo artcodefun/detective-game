@@ -1,0 +1,21 @@
+{
+  "chronology.case_started": "Начало расследования",
+  "chronology.interrogation_started": "Допрос: {character_name}",
+  "chronology.final_report_submitted": "Финальный отчёт отправлен",
+  "action.dna_analysis": "Анализ ДНК",
+  "action.fingerprints": "Проверка отпечатков",
+  "action.alibi_check": "Проверка алиби",
+  "action.camera_review": "Просмотр записей с камер",
+  "action.call_history": "История звонков",
+  "action.transaction_check": "Проверка транзакций",
+  "error.internal": "Внутренняя ошибка сервера",
+  "error.not_found": "Объект не найден",
+  "error.forbidden": "Недостаточно прав",
+  "error.conflict": "Операция недоступна в текущем состоянии",
+  "error.invalid_input": "Некорректные данные",
+  "error.active_interrogation_exists": "Сначала завершите текущий допрос",
+  "error.no_interrogations_left": "Лимит допросов исчерпан",
+  "error.interrogation_not_active": "Допрос уже завершён",
+  "error.not_enough_action_points": "Недостаточно очков действий",
+  "error.session_already_finished": "Расследование уже завершено"
+}

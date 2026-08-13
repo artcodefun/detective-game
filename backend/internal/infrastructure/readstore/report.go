@@ -12,11 +12,12 @@ import (
 )
 
 type ReportReadRepo struct {
-	coll *mongo.Collection
+	coll     *mongo.Collection
+	sessions *mongo.Collection
 }
 
 func NewReportReadRepo(db *mongo.Database) *ReportReadRepo {
-	return &ReportReadRepo{coll: db.Collection("reports")}
+	return &ReportReadRepo{coll: db.Collection("reports"), sessions: db.Collection("sessions")}
 }
 
 func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*readmodels.ActionReport, error) {
@@ -25,10 +26,14 @@ func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*re
 	if err != nil {
 		return nil, wrapFindError("find report", err)
 	}
-	return readmodels.ActionReportFromDomain(&report), nil
+	return r.toReadModel(ctx, report)
 }
 
 func (r *ReportReadRepo) ListReports(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ActionReport, error) {
+	var session domain.Session
+	if err := r.sessions.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session); err != nil {
+		return nil, wrapFindError("find session for reports", err)
+	}
 	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID})
 	if err != nil {
 		return nil, fmt.Errorf("list reports: %w", err)
@@ -41,10 +46,22 @@ func (r *ReportReadRepo) ListReports(ctx context.Context, sessionID uuid.UUID) (
 		if err := cursor.Decode(&report); err != nil {
 			return nil, fmt.Errorf("decode report: %w", err)
 		}
-		items = append(items, readmodels.ActionReportFromDomain(&report))
+		item := readmodels.ActionReportFromDomain(&report)
+		item.ContentLocale = session.ContentLocale
+		items = append(items, item)
 	}
 	if items == nil {
 		items = make([]*readmodels.ActionReport, 0)
 	}
 	return items, nil
+}
+
+func (r *ReportReadRepo) toReadModel(ctx context.Context, report domain.ActionReport) (*readmodels.ActionReport, error) {
+	var session domain.Session
+	if err := r.sessions.FindOne(ctx, bson.M{"_id": report.SessionID}).Decode(&session); err != nil {
+		return nil, wrapFindError("find session for report", err)
+	}
+	item := readmodels.ActionReportFromDomain(&report)
+	item.ContentLocale = session.ContentLocale
+	return item, nil
 }

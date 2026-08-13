@@ -13,30 +13,35 @@ import (
 )
 
 type ChronologyReadRepo struct {
-	coll *mongo.Collection
+	coll     *mongo.Collection
+	sessions *mongo.Collection
 }
 
 func NewChronologyReadRepo(db *mongo.Database) *ChronologyReadRepo {
-	return &ChronologyReadRepo{coll: db.Collection("chronology")}
+	return &ChronologyReadRepo{coll: db.Collection("chronology"), sessions: db.Collection("sessions")}
 }
 
-func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ChronologyEntry, error) {
+func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.UUID) (*readmodels.Chronology, error) {
+	var session domain.Session
+	if err := r.sessions.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session); err != nil {
+		return nil, wrapFindError("find session for chronology", err)
+	}
 	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID}, options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}}))
 	if err != nil {
 		return nil, fmt.Errorf("list chronology: %w", err)
 	}
 	defer cursor.Close(ctx)
 
-	var items []*readmodels.ChronologyEntry
+	var items []readmodels.ChronologyEntry
 	for cursor.Next(ctx) {
 		var c domain.ChronologyEntry
 		if err := cursor.Decode(&c); err != nil {
 			return nil, fmt.Errorf("decode chronology entry: %w", err)
 		}
-		items = append(items, readmodels.ChronologyEntryFromDomain(&c))
+		items = append(items, *readmodels.ChronologyEntryFromDomain(&c))
 	}
 	if items == nil {
-		items = make([]*readmodels.ChronologyEntry, 0)
+		items = make([]readmodels.ChronologyEntry, 0)
 	}
-	return items, nil
+	return &readmodels.Chronology{ContentLocale: session.ContentLocale, Entries: items}, nil
 }

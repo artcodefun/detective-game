@@ -1,0 +1,21 @@
+{
+  "chronology.case_started": "Investigation started",
+  "chronology.interrogation_started": "Interrogation: {character_name}",
+  "chronology.final_report_submitted": "Final report submitted",
+  "action.dna_analysis": "DNA analysis",
+  "action.fingerprints": "Fingerprint check",
+  "action.alibi_check": "Alibi check",
+  "action.camera_review": "Camera footage review",
+  "action.call_history": "Call history",
+  "action.transaction_check": "Transaction check",
+  "error.internal": "Internal server error",
+  "error.not_found": "Resource not found",
+  "error.forbidden": "Access denied",
+  "error.conflict": "Operation is unavailable in the current state",
+  "error.invalid_input": "Invalid input",
+  "error.active_interrogation_exists": "Complete the current interrogation first",
+  "error.no_interrogations_left": "No interrogations remaining",
+  "error.interrogation_not_active": "Interrogation is already completed",
+  "error.not_enough_action_points": "Not enough action points",
+  "error.session_already_finished": "Investigation is already finished"
+}

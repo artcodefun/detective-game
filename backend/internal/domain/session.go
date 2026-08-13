@@ -14,17 +14,18 @@ const (
 )
 
 type Session struct {
-	ID           uuid.UUID   `bson:"_id"`
-	UserID       uuid.UUID   `bson:"user_id"`
-	Crime        Crime       `bson:"crime"`
-	Timeline     Timeline    `bson:"timeline"`
-	CaseName     string      `bson:"case_name"`
-	CaseBrief    string      `bson:"case_brief"`
-	ActionPoints int         `bson:"action_points"`
-	Phase        GamePhase   `bson:"phase"`
-	GameResult   *GameResult `bson:"game_result,omitempty"`
-	CreatedAt    time.Time   `bson:"created_at"`
-	FinishedAt   *time.Time  `bson:"finished_at,omitempty"`
+	ID            uuid.UUID   `bson:"_id"`
+	UserID        uuid.UUID   `bson:"user_id"`
+	Crime         Crime       `bson:"crime"`
+	Timeline      Timeline    `bson:"timeline"`
+	CaseName      string      `bson:"case_name"`
+	CaseBrief     string      `bson:"case_brief"`
+	ActionPoints  int         `bson:"action_points"`
+	Phase         GamePhase   `bson:"phase"`
+	GameResult    *GameResult `bson:"game_result,omitempty"`
+	CreatedAt     time.Time   `bson:"created_at"`
+	FinishedAt    *time.Time  `bson:"finished_at,omitempty"`
+	ContentLocale Locale      `bson:"content_locale"`
 }
 
 const MaxActionPoints = 5

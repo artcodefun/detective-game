@@ -23,7 +23,8 @@ func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepos
 	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology}
 }
 
-func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+func (c *ScenarioCommands) CreateSession(ctx context.Context, actor application.Actor) (uuid.UUID, error) {
+	userID := actor.UserID
 	_, err := c.Users.FindUserByID(ctx, userID)
 	if err != nil {
 		user := domain.NewUser()
@@ -33,7 +34,7 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 		}
 	}
 
-	output, err := c.LLM.GenerateScenario(ctx)
+	output, err := c.LLM.GenerateScenario(ctx, actor.Locale)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
@@ -45,15 +46,16 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 	sessionID := uuid.New()
 
 	session := &domain.Session{
-		ID:           sessionID,
-		UserID:       userID,
-		Crime:        output.Crime,
-		Timeline:     output.Timeline,
-		CaseName:     output.CaseName,
-		CaseBrief:    output.CaseBrief,
-		ActionPoints: domain.MaxActionPoints,
-		Phase:        domain.GamePhaseInvestigating,
-		CreatedAt:    time.Now(),
+		ID:            sessionID,
+		UserID:        userID,
+		Crime:         output.Crime,
+		Timeline:      output.Timeline,
+		CaseName:      output.CaseName,
+		CaseBrief:     output.CaseBrief,
+		ActionPoints:  domain.MaxActionPoints,
+		Phase:         domain.GamePhaseInvestigating,
+		CreatedAt:     time.Now(),
+		ContentLocale: actor.Locale,
 	}
 
 	if err := c.Sessions.Create(ctx, session); err != nil {
@@ -73,7 +75,7 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, userID uuid.UUID) 
 		}
 	}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeCaseStarted, &sessionID, "Начало расследования", session.CreatedAt)
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeCaseStarted, &sessionID, domain.T("chronology.case_started"), session.CreatedAt)
 	if err := c.Chronology.AppendChronologyEntry(ctx, sessionID, chronology); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}

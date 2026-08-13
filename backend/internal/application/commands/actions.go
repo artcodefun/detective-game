@@ -35,14 +35,14 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	}
 
 	if !session.SpendActionPoints(req.kind.Cost()) {
-		return uuid.Nil, application.NewAppError(application.KindConflict, "not_enough_action_points")
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.not_enough_action_points"))
 	}
 
 	if err := c.Sessions.Update(ctx, session); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	body, err := c.LLM.RunAction(ctx, string(req.kind), req.evidenceID, req.characterID, req.alibiText)
+	body, err := c.LLM.RunAction(ctx, session.ContentLocale, string(req.kind), req.evidenceID, req.characterID, req.alibiText)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
@@ -50,6 +50,7 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	report := domain.ActionReport{
 		ID:          uuid.New(),
 		Type:        req.kind,
+		Title:       domain.T("action." + string(req.kind)),
 		Body:        body,
 		EvidenceID:  req.evidenceID,
 		CharacterID: req.characterID,
@@ -60,31 +61,12 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFromAction(req.kind), &report.ID, actionTitle(req.kind), report.Timestamp)
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFromAction(req.kind), &report.ID, report.Title, report.Timestamp)
 	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
 	return report.ID, nil
-}
-
-func actionTitle(action domain.ActionType) string {
-	switch action {
-	case domain.ActionTypeDNAAnalysis:
-		return "Анализ ДНК"
-	case domain.ActionTypeFingerprints:
-		return "Проверка отпечатков"
-	case domain.ActionTypeAlibiCheck:
-		return "Проверка алиби"
-	case domain.ActionTypeCameraReview:
-		return "Просмотр записей с камер"
-	case domain.ActionTypeCallHistory:
-		return "История звонков"
-	case domain.ActionTypeTransactionCheck:
-		return "Проверка транзакций"
-	default:
-		return string(action)
-	}
 }
 
 func (c *ActionCommands) DNAAnalysis(ctx context.Context, actor application.Actor, evidenceID uuid.UUID) (uuid.UUID, error) {

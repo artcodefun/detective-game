@@ -29,8 +29,8 @@ type LlmFeedbackResponse struct {
 }
 
 type LlmService interface {
-	GenerateScenario(ctx context.Context) (*ScenarioOutput, error)
-	RespondInInterrogation(ctx context.Context, character domain.Character, playerMessage string) (*LlmInterrogationResponse, error)
-	EvaluateReport(ctx context.Context, playerReport domain.FinalReport, groundTruth domain.Crime) (*LlmFeedbackResponse, error)
-	RunAction(ctx context.Context, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error)
+	GenerateScenario(ctx context.Context, locale domain.Locale) (*ScenarioOutput, error)
+	RespondInInterrogation(ctx context.Context, locale domain.Locale, character domain.Character, playerMessage string) (*LlmInterrogationResponse, error)
+	EvaluateReport(ctx context.Context, locale domain.Locale, playerReport domain.FinalReport, groundTruth domain.Crime) (*LlmFeedbackResponse, error)
+	RunAction(ctx context.Context, locale domain.Locale, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error)
 }

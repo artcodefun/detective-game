@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 )
 
 type ErrorKind int
@@ -17,17 +18,16 @@ const (
 )
 
 type AppError struct {
-	Kind   ErrorKind
-	Code   string
-	Params map[string]any
+	Kind        ErrorKind
+	Translation domain.Translation
 }
 
 func (e AppError) Error() string {
-	return e.Code
+	return string(e.Translation.Key)
 }
 
-func NewAppError(kind ErrorKind, code string) AppError {
-	return AppError{Kind: kind, Code: code}
+func NewAppError(kind ErrorKind, translation domain.Translation) AppError {
+	return AppError{Kind: kind, Translation: translation}
 }
 
 func WrapError(err error) error {
@@ -41,14 +41,14 @@ func WrapError(err error) error {
 	if errors.Is(err, ports.ErrNotFound) {
 		return ErrNotFound
 	}
-	return NewAppError(KindInternal, "internal_error")
+	return NewAppError(KindInternal, domain.T("error.internal"))
 }
 
 var (
-	ErrNotFound     = NewAppError(KindNotFound, "not_found")
-	ErrForbidden    = NewAppError(KindForbidden, "forbidden")
-	ErrConflict     = NewAppError(KindConflict, "conflict")
-	ErrInvalidInput = NewAppError(KindInvalidInput, "invalid_input")
+	ErrNotFound     = NewAppError(KindNotFound, domain.T("error.not_found"))
+	ErrForbidden    = NewAppError(KindForbidden, domain.T("error.forbidden"))
+	ErrConflict     = NewAppError(KindConflict, domain.T("error.conflict"))
+	ErrInvalidInput = NewAppError(KindInvalidInput, domain.T("error.invalid_input"))
 )
 
 func IsNotFound(err error) bool {

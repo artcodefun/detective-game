@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
+	"github.com/artcodefun/detective-game/backend/internal/infrastructure/i18n"
 	"github.com/artcodefun/detective-game/backend/internal/infrastructure/llm"
 	"github.com/artcodefun/detective-game/backend/internal/infrastructure/readstore"
 	"github.com/artcodefun/detective-game/backend/internal/infrastructure/repo"
@@ -32,13 +33,15 @@ type Adapters struct {
 	ReadChron    ports.ChronologyReadRepository
 	ReadChat     ports.ChatMessageReadRepository
 
-	LLM ports.LlmService
+	LLM        ports.LlmService
+	Translator ports.Translator
 }
 
 func NewAdapters(cfg Config) *Adapters {
 	client, db := newDatabase(cfg.MongoURI, cfg.MongoDatabase)
 
 	llmService := llm.NewOpenRouterClient(cfg.OpenRouterKey, cfg.OpenRouterModel)
+	translator := i18n.NewTranslator()
 	log.Printf("using OpenRouter, model=%s", cfg.OpenRouterModel)
 
 	return &Adapters{
@@ -60,7 +63,8 @@ func NewAdapters(cfg Config) *Adapters {
 		ReadChron:    readstore.NewChronologyReadRepo(db),
 		ReadChat:     readstore.NewChatReadRepo(db),
 
-		LLM: llmService,
+		LLM:        llmService,
+		Translator: translator,
 	}
 }
 

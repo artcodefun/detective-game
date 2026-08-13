@@ -37,5 +37,5 @@ type ReportReadRepository interface {
 }
 
 type ChronologyReadRepository interface {
-	GetChronology(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ChronologyEntry, error)
+	GetChronology(ctx context.Context, sessionID uuid.UUID) (*readmodels.Chronology, error)
 }

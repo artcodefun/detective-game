@@ -29,7 +29,7 @@ func (c *InterrogationCommands) Create(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 	if active != nil {
-		return uuid.Nil, application.NewAppError(application.KindConflict, "active_interrogation_exists")
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.active_interrogation_exists"))
 	}
 
 	char, err := c.Characters.FindCharacterByID(ctx, actor.SessionID, characterID)
@@ -37,7 +37,7 @@ func (c *InterrogationCommands) Create(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 	if !char.CanInterrogate() {
-		return uuid.Nil, application.NewAppError(application.KindConflict, "no_interrogations_left")
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.no_interrogations_left"))
 	}
 
 	char.DecrementInterrogation()
@@ -49,7 +49,7 @@ func (c *InterrogationCommands) Create(ctx context.Context, actor application.Ac
 	if err := c.Interrogations.CreateInterrogation(ctx, inter); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeInterrogation, &inter.ID, "Допрос: "+char.Name, inter.CreatedAt)
+	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeInterrogation, &inter.ID, domain.TWith("chronology.interrogation_started", map[string]any{"character_name": char.Name}), inter.CreatedAt)
 	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
@@ -63,7 +63,7 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		return uuid.Nil, application.WrapError(err)
 	}
 	if !inter.IsActive() {
-		return uuid.Nil, application.NewAppError(application.KindConflict, "interrogation_not_active")
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.interrogation_not_active"))
 	}
 
 	char, err := c.Characters.FindCharacterByID(ctx, actor.SessionID, inter.CharacterID)
@@ -83,7 +83,11 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	resp, err := c.LLM.RespondInInterrogation(ctx, *char, message)
+	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	if err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+	resp, err := c.LLM.RespondInInterrogation(ctx, session.ContentLocale, *char, message)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
@@ -143,7 +147,7 @@ func (c *InterrogationCommands) Complete(ctx context.Context, actor application.
 		return application.WrapError(err)
 	}
 	if !inter.IsActive() {
-		return application.NewAppError(application.KindConflict, "interrogation_not_active")
+		return application.NewAppError(application.KindConflict, domain.T("error.interrogation_not_active"))
 	}
 
 	inter.Complete()

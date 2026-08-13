@@ -34,6 +34,7 @@ func NewModule(cfg Config) *Module {
 		Evidence:   queries.Evidence,
 		Chronology: queries.Chronology,
 		Chat:       queries.Chat,
+		Translator: adapters.Translator,
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

@@ -6,15 +6,16 @@ import (
 
 func SessionFromDomain(session *domain.Session) *Session {
 	return &Session{
-		ID:           session.ID,
-		UserID:       session.UserID,
-		CaseName:     session.CaseName,
-		CaseBrief:    session.CaseBrief,
-		ActionPoints: session.ActionPoints,
-		Phase:        string(session.Phase),
-		GameResult:   GameResultFromDomain(session.GameResult),
-		CreatedAt:    session.CreatedAt,
-		FinishedAt:   session.FinishedAt,
+		ID:            session.ID,
+		UserID:        session.UserID,
+		CaseName:      session.CaseName,
+		CaseBrief:     session.CaseBrief,
+		ActionPoints:  session.ActionPoints,
+		Phase:         string(session.Phase),
+		GameResult:    GameResultFromDomain(session.GameResult),
+		CreatedAt:     session.CreatedAt,
+		FinishedAt:    session.FinishedAt,
+		ContentLocale: session.ContentLocale,
 	}
 }
 
@@ -77,7 +78,6 @@ func EvidenceFromDomain(ev *domain.Evidence) *Evidence {
 }
 
 func ActionReportFromDomain(r *domain.ActionReport) *ActionReport {
-	title := actionTypeTitle(r.Type)
 	desc := r.Body
 	if len(desc) > 80 {
 		desc = desc[:80] + "..."
@@ -85,31 +85,13 @@ func ActionReportFromDomain(r *domain.ActionReport) *ActionReport {
 	return &ActionReport{
 		ID:          r.ID,
 		Type:        string(r.Type),
-		Title:       title,
+		Title:       r.Title,
 		Description: desc,
 		Body:        r.Body,
 		EvidenceID:  r.EvidenceID,
 		CharacterID: r.CharacterID,
 		Timestamp:   r.Timestamp,
 	}
-}
-
-func actionTypeTitle(t domain.ActionType) string {
-	switch t {
-	case domain.ActionTypeDNAAnalysis:
-		return "Анализ ДНК"
-	case domain.ActionTypeFingerprints:
-		return "Отпечатки пальцев"
-	case domain.ActionTypeAlibiCheck:
-		return "Проверка алиби"
-	case domain.ActionTypeCameraReview:
-		return "Записи с камер"
-	case domain.ActionTypeCallHistory:
-		return "История звонков"
-	case domain.ActionTypeTransactionCheck:
-		return "Банковские операции"
-	}
-	return string(t)
 }
 
 func ChronologyEntryFromDomain(c *domain.ChronologyEntry) *ChronologyEntry {
