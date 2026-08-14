@@ -14,22 +14,65 @@ class NotebookScreen extends StatefulWidget {
 
 class _NotebookScreenState extends State<NotebookScreen> {
   late Future<List<ChronologyEntry>> _future;
+  List<ChronologyEntry>? _chronology;
 
   @override
   void initState() {
     super.initState();
-    _future = context.read<ApiService>().getChronology();
+    _future = _loadChronology();
   }
 
-  Future<void> _reload() async {
-    setState(() => _future = context.read<ApiService>().getChronology());
+  Future<List<ChronologyEntry>> _loadChronology() async {
+    final chronology = await context.read<ApiService>().getChronology();
+    _chronology = chronology;
+    return chronology;
   }
 
-  List<(ChronologyEntry, NotebookEntry)> _taggedNotes(List<ChronologyEntry> chronology) {
+  void _updateNotebookEntry(
+    ChronologyEntry chronology,
+    NotebookEntry entry,
+    List<NoteTag> tags,
+    String? note,
+  ) {
+    final currentChronology = _chronology;
+    if (currentChronology == null) return;
+
+    final updatedEntry = entry.copyWith(
+      userTags: tags,
+      userNote: note,
+      clearNote: note == null,
+    );
+    setState(() {
+      _chronology =
+          currentChronology
+              .map(
+                (item) =>
+                    item.id == chronology.id
+                        ? item.copyWith(
+                          details:
+                              item.details
+                                  .map(
+                                    (detail) =>
+                                        detail.id == entry.id
+                                            ? updatedEntry
+                                            : detail,
+                                  )
+                                  .toList(),
+                        )
+                        : item,
+              )
+              .toList();
+    });
+  }
+
+  List<(ChronologyEntry, NotebookEntry)> _taggedNotes(
+    List<ChronologyEntry> chronology,
+  ) {
     final result = <(ChronologyEntry, NotebookEntry)>[];
     for (final chron in chronology) {
       for (final detail in chron.details) {
-        if (detail.userTags.isNotEmpty || (detail.userNote != null && detail.userNote!.isNotEmpty)) {
+        if (detail.userTags.isNotEmpty ||
+            (detail.userNote != null && detail.userNote!.isNotEmpty)) {
           result.add((chron, detail));
         }
       }
@@ -37,37 +80,33 @@ class _NotebookScreenState extends State<NotebookScreen> {
     return result;
   }
 
-  void _openTagSheet(ChronologyEntry chron, NotebookEntry entry) {
-    showModalBottomSheet(
+  Future<void> _openTagSheet(ChronologyEntry chron, NotebookEntry entry) async {
+    final update = await showModalBottomSheet<(List<NoteTag>, String?)>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (_) => _TagNoteSheet(
-            entry: entry,
-            onApply: (tags, note) async {
-              try {
-                await context.read<ApiService>().updateNotebookEntry(
-                  chronId: chron.id,
-                  noteId: entry.id,
-                  tags: tags.map((t) => t.name).toList(),
-                  note: note,
-                );
-                _reload();
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-              }
-            },
-            onClear: () async {
-              try {
-                await context.read<ApiService>().updateNotebookEntry(chronId: chron.id, noteId: entry.id, tags: []);
-                _reload();
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-              }
-            },
-          ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TagNoteSheet(entry: entry),
     );
+    if (update == null || !mounted) return;
+
+    try {
+      final (tags, note) = update;
+      await context.read<ApiService>().updateNotebookEntry(
+        chronId: chron.id,
+        noteId: entry.id,
+        tags: tags.map((tag) => tag.name).toList(),
+        note: note,
+      );
+      _updateNotebookEntry(chron, entry, tags, note);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      }
+    }
   }
 
   @override
@@ -78,7 +117,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Блокнот'),
-          bottom: const TabBar(tabs: [Tab(text: 'Хронология'), Tab(text: 'Заметки')]),
+          bottom: const TabBar(
+            tabs: [Tab(text: 'Хронология'), Tab(text: 'Заметки')],
+          ),
         ),
         body: FutureBuilder<List<ChronologyEntry>>(
           future: _future,
@@ -89,8 +130,13 @@ class _NotebookScreenState extends State<NotebookScreen> {
             if (snapshot.hasError) {
               return Center(child: Text('Ошибка: ${snapshot.error}'));
             }
-            final chronology = snapshot.data!;
-            return TabBarView(children: [_buildTimeline(theme, chronology), _buildNotes(theme, chronology)]);
+            final chronology = _chronology ?? snapshot.data!;
+            return TabBarView(
+              children: [
+                _buildTimeline(theme, chronology),
+                _buildNotes(theme, chronology),
+              ],
+            );
           },
         ),
       ),
@@ -103,11 +149,17 @@ class _NotebookScreenState extends State<NotebookScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history, size: 64, color: theme.colorScheme.onSurface.withAlpha(80)),
+            Icon(
+              Icons.history,
+              size: 64,
+              color: theme.colorScheme.onSurface.withAlpha(80),
+            ),
             const SizedBox(height: 16),
             Text(
               'Хронология пуста',
-              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120)),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(120),
+              ),
             ),
           ],
         ),
@@ -118,7 +170,10 @@ class _NotebookScreenState extends State<NotebookScreen> {
       itemCount: chronology.length,
       itemBuilder: (_, index) {
         final chron = chronology[index];
-        return _ChronologyCard(entry: chron, onDetailTap: (detail) => _openTagSheet(chron, detail));
+        return _ChronologyCard(
+          entry: chron,
+          onDetailTap: (detail) => _openTagSheet(chron, detail),
+        );
       },
     );
   }
@@ -130,11 +185,17 @@ class _NotebookScreenState extends State<NotebookScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.flag_outlined, size: 64, color: theme.colorScheme.onSurface.withAlpha(80)),
+            Icon(
+              Icons.flag_outlined,
+              size: 64,
+              color: theme.colorScheme.onSurface.withAlpha(80),
+            ),
             const SizedBox(height: 16),
             Text(
               'Нет помеченных записей',
-              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120)),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(120),
+              ),
             ),
           ],
         ),
@@ -161,7 +222,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
                       const Spacer(),
                       Text(
                         _formatTime(entry.timestamp),
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withAlpha(120),
+                        ),
                       ),
                     ],
                   ),
@@ -170,7 +233,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '— ${chron.title}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(100)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withAlpha(100),
+                    ),
                   ),
                   if (entry.userNote != null && entry.userNote!.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -183,7 +248,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
                       ),
                       child: Text(
                         entry.userNote!,
-                        style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],
@@ -219,7 +286,10 @@ class _NotebookScreenState extends State<NotebookScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: color.withAlpha(80)),
               ),
-              child: Text(_tagLabel(t), style: TextStyle(fontSize: 11, color: color)),
+              child: Text(
+                _tagLabel(t),
+                style: TextStyle(fontSize: 11, color: color),
+              ),
             );
           }).toList(),
     );
@@ -238,7 +308,8 @@ class _NotebookScreenState extends State<NotebookScreen> {
     }
   }
 
-  String _formatTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _formatTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _ChronologyCard extends StatefulWidget {
@@ -259,13 +330,18 @@ class _ChronologyCardState extends State<_ChronologyCard> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final entry = widget.entry;
+    final canExpand = entry.details.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: _expanded ? const BorderRadius.vertical(top: Radius.circular(12)) : BorderRadius.circular(12),
+            onTap:
+                canExpand ? () => setState(() => _expanded = !_expanded) : null,
+            borderRadius:
+                canExpand && _expanded
+                    ? const BorderRadius.vertical(top: Radius.circular(12))
+                    : BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -278,7 +354,11 @@ class _ChronologyCardState extends State<_ChronologyCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
-                      child: Icon(_iconForEventType(entry.eventType), color: colorScheme.onPrimaryContainer, size: 20),
+                      child: Icon(
+                        _iconForEventType(entry.eventType),
+                        color: colorScheme.onPrimaryContainer,
+                        size: 20,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -286,50 +366,60 @@ class _ChronologyCardState extends State<_ChronologyCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(entry.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(
+                          entry.title,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           '${entry.eventTypeLabel} • ${_formatTime(entry.timestamp)}',
-                          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withAlpha(120),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(Icons.expand_more, color: colorScheme.onSurface.withAlpha(120)),
-                  ),
+                  if (canExpand)
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.expand_more,
+                        color: colorScheme.onSurface.withAlpha(120),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: _buildDetails(theme, colorScheme),
-            crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 200),
-          ),
+          if (canExpand)
+            ClipRect(
+              child: AnimatedAlign(
+                alignment: Alignment.topCenter,
+                heightFactor: _expanded ? 1 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: _buildDetails(),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildDetails(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildDetails() {
     final details = widget.entry.details;
-    if (details.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Text(
-          'Нет записей',
-          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(100)),
-        ),
-      );
-    }
     return Column(
       children: [
         const Divider(height: 1),
-        ...details.map((detail) => _DetailTile(entry: detail, onTap: () => widget.onDetailTap(detail))),
+        ...details.map(
+          (detail) => _DetailTile(
+            entry: detail,
+            onTap: () => widget.onDetailTap(detail),
+          ),
+        ),
       ],
     );
   }
@@ -353,7 +443,8 @@ class _ChronologyCardState extends State<_ChronologyCard> {
     }
   }
 
-  String _formatTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _formatTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _DetailTile extends StatelessWidget {
@@ -378,14 +469,21 @@ class _DetailTile extends StatelessWidget {
             if (hasTags)
               Padding(
                 padding: const EdgeInsets.only(top: 6, right: 8),
-                child: Icon(Icons.flag, size: 14, color: theme.colorScheme.primary),
+                child: Icon(
+                  Icons.flag,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(entry.description, style: theme.textTheme.bodyMedium),
-                  if (hasTags) ...[const SizedBox(height: 4), _TagLabel(entry: entry)],
+                  if (hasTags) ...[
+                    const SizedBox(height: 4),
+                    _TagLabel(entry: entry),
+                  ],
                   if (hasNote) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -420,15 +518,20 @@ class _TagLabel extends StatelessWidget {
       children:
           entry.userTags.map((t) {
             Color color;
+            String label;
             switch (t) {
               case NoteTag.strange:
                 color = Colors.purple;
+                label = 'странно';
               case NoteTag.suspicious:
                 color = Colors.orange;
+                label = 'подозрительно';
               case NoteTag.lie:
                 color = Colors.red;
+                label = 'ложь';
               case NoteTag.key:
                 color = Colors.blue;
+                label = 'ключевое';
             }
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -437,7 +540,14 @@ class _TagLabel extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: color.withAlpha(60)),
               ),
-              child: Text(entry.tagsLabel, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             );
           }).toList(),
     );
@@ -446,10 +556,8 @@ class _TagLabel extends StatelessWidget {
 
 class _TagNoteSheet extends StatefulWidget {
   final NotebookEntry entry;
-  final void Function(List<NoteTag> tags, String? note) onApply;
-  final VoidCallback onClear;
 
-  const _TagNoteSheet({required this.entry, required this.onApply, required this.onClear});
+  const _TagNoteSheet({required this.entry});
 
   @override
   State<_TagNoteSheet> createState() => _TagNoteSheetState();
@@ -503,11 +611,18 @@ class _TagNoteSheetState extends State<_TagNoteSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Пометить запись', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Пометить запись',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             widget.entry.description,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(140)),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withAlpha(140),
+            ),
           ),
           const SizedBox(height: 16),
           Text('Метки', style: theme.textTheme.labelLarge),
@@ -552,7 +667,9 @@ class _TagNoteSheetState extends State<_TagNoteSheet> {
             minLines: 1,
             decoration: InputDecoration(
               hintText: 'Ваш комментарий...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               contentPadding: const EdgeInsets.all(12),
             ),
           ),
@@ -560,22 +677,24 @@ class _TagNoteSheetState extends State<_TagNoteSheet> {
           Row(
             children: [
               OutlinedButton(
-                onPressed: () {
-                  widget.onClear();
-                  Navigator.pop(context);
-                },
-                child: const Text('Очистить'),
+                onPressed:
+                    () => Navigator.pop(context, (const <NoteTag>[], null)),
+                child: const Text('Сброс'),
               ),
               const Spacer(),
-              OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Отмена'),
+              ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: () {
-                  widget.onApply(
+                  Navigator.pop(context, (
                     _selectedTags,
-                    _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-                  );
-                  Navigator.pop(context);
+                    _noteController.text.trim().isEmpty
+                        ? null
+                        : _noteController.text.trim(),
+                  ));
                 },
                 child: const Text('Применить'),
               ),
