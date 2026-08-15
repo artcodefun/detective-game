@@ -6,7 +6,8 @@ import (
 )
 
 type Actor struct {
-	UserID    uuid.UUID
-	SessionID uuid.UUID
-	Locale    domain.Locale
+	UserID               uuid.UUID
+	SessionID            uuid.UUID
+	Locale               domain.Locale
+	SessionContentLocale domain.Locale
 }

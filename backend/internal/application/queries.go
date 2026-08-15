@@ -4,10 +4,12 @@ import (
 	"context"
 
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
 type SessionQueries interface {
+	GetSessionLocale(ctx context.Context, userID, sessionID uuid.UUID) (domain.Locale, error)
 	GetSession(ctx context.Context, actor Actor) (*readmodels.Session, error)
 	GetSessionByID(ctx context.Context, actor Actor, sessionID uuid.UUID) (*readmodels.Session, error)
 	ListHistory(ctx context.Context, actor Actor) ([]*readmodels.Session, error)
@@ -27,7 +29,7 @@ type EvidenceQueries interface {
 }
 
 type ChronologyQueries interface {
-	GetChronology(ctx context.Context, actor Actor) (*readmodels.Chronology, error)
+	GetChronology(ctx context.Context, actor Actor) ([]readmodels.ChronologyEntry, error)
 }
 
 type ChatQueries interface {

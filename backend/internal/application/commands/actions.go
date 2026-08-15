@@ -13,12 +13,14 @@ import (
 type ActionCommands struct {
 	Sessions   ports.SessionRepository
 	Reports    ports.ActionReportRepository
+	Evidence   ports.EvidenceRepository
+	Characters ports.CharacterRepository
 	LLM        ports.LlmService
 	Chronology ports.ChronologyRepository
 }
 
-func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *ActionCommands {
-	return &ActionCommands{Sessions: sessions, Reports: reports, LLM: llm, Chronology: chronology}
+func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, evidence ports.EvidenceRepository, characters ports.CharacterRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *ActionCommands {
+	return &ActionCommands{Sessions: sessions, Reports: reports, Evidence: evidence, Characters: characters, LLM: llm, Chronology: chronology}
 }
 
 type actionRequest struct {
@@ -34,16 +36,31 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	if !session.SpendActionPoints(req.kind.Cost()) {
+	if session.ActionPoints < req.kind.Cost() {
 		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.not_enough_action_points"))
 	}
 
-	if err := c.Sessions.Update(ctx, session); err != nil {
+	var evidence *domain.Evidence
+	if req.evidenceID != nil {
+		evidence, err = c.Evidence.FindEvidenceByID(ctx, actor.SessionID, *req.evidenceID)
+		if err != nil {
+			return uuid.Nil, application.WrapError(err)
+		}
+	}
+	var character *domain.Character
+	if req.characterID != nil {
+		character, err = c.Characters.FindCharacterByID(ctx, actor.SessionID, *req.characterID)
+		if err != nil {
+			return uuid.Nil, application.WrapError(err)
+		}
+	}
+	body, err := c.LLM.RunAction(ctx, session.ContentLocale, string(req.kind), session.Crime, session.Timeline, evidence, character, req.alibiText)
+	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	body, err := c.LLM.RunAction(ctx, session.ContentLocale, string(req.kind), req.evidenceID, req.characterID, req.alibiText)
-	if err != nil {
+	session.SpendActionPoints(req.kind.Cost())
+	if err := c.Sessions.Update(ctx, session); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 

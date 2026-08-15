@@ -37,7 +37,9 @@ class _FactsTabState extends State<_FactsTab> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<ApiService>().getCurrentSession().then((s) => s.caseBrief);
+    _future = context.read<ApiService>().getCurrentSession().then(
+      (s) => s.caseBrief,
+    );
   }
 
   @override
@@ -48,7 +50,9 @@ class _FactsTabState extends State<_FactsTab> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+        if (snapshot.hasError ||
+            snapshot.data == null ||
+            snapshot.data!.isEmpty) {
           return Center(
             child: Text(
               'Документ ещё не готов',
@@ -64,19 +68,55 @@ class _FactsTabState extends State<_FactsTab> {
             data: snapshot.data!,
             padding: const EdgeInsets.all(16),
             styleSheet: MarkdownStyleSheet(
-              h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-              h2: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
-              h3: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
-              p: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.6),
-              strong: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-              em: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black87),
+              h1: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              h2: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              h3: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              p: const TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+                height: 1.6,
+              ),
+              strong: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              em: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.black87,
+              ),
               listBullet: const TextStyle(fontSize: 15, color: Colors.black87),
               tableBody: const TextStyle(fontSize: 14, color: Colors.black87),
-              tableHead: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-              tableBorder: TableBorder.all(color: Colors.grey.shade400, width: 0.5),
+              tableHead: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              tableBorder: TableBorder.all(
+                color: Colors.grey.shade400,
+                width: 0.5,
+              ),
               tableColumnWidth: const FlexColumnWidth(),
-              tableCellsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              code: TextStyle(fontSize: 13, color: Colors.grey.shade800, backgroundColor: Colors.grey.shade200),
+              tableCellsPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              code: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade800,
+                backgroundColor: Colors.grey.shade200,
+              ),
             ),
           ),
         );
@@ -86,10 +126,12 @@ class _FactsTabState extends State<_FactsTab> {
 }
 
 sealed class _Item {}
+
 class _EvidenceItem extends _Item {
   final Evidence evidence;
   _EvidenceItem(this.evidence);
 }
+
 class _ReportItem extends _Item {
   final ActionReport report;
   _ReportItem(this.report);
@@ -112,18 +154,12 @@ class _EvidenceTabState extends State<_EvidenceTab> {
 
   Future<List<_Item>> _fetchEvidence() async {
     final api = context.read<ApiService>();
-    final list = await api.listEvidence();
-    final items = <_Item>[];
-    for (final e in list) {
-      if (e.type == 'physical' || e.type == 'digital' || e.type == 'document' || e.type == 'testimony') {
-        items.add(_EvidenceItem(e));
-      } else {
-        items.add(_ReportItem(ActionReport(
-          id: e.id, type: e.type, title: e.name, description: e.description, body: e.detailedDescription, timestamp: DateTime.now(),
-        )));
-      }
-    }
-    return items;
+    final evidence = await api.listEvidence();
+    final reports = await api.listReports();
+    return [
+      ...evidence.map(_EvidenceItem.new),
+      ...reports.map(_ReportItem.new),
+    ];
   }
 
   @override
@@ -140,9 +176,12 @@ class _EvidenceTabState extends State<_EvidenceTab> {
         final items = snapshot.data!;
         if (items.isEmpty) {
           return Center(
-            child: Text('Улик и отчётов пока нет', style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
-            )),
+            child: Text(
+              'Улик и отчётов пока нет',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+              ),
+            ),
           );
         }
         return ListView.builder(
@@ -150,7 +189,9 @@ class _EvidenceTabState extends State<_EvidenceTab> {
           itemCount: items.length,
           itemBuilder: (_, index) {
             final item = items[index];
-            if (item is _EvidenceItem) return _EvidenceCard(evidence: item.evidence);
+            if (item is _EvidenceItem) {
+              return _EvidenceCard(evidence: item.evidence);
+            }
             return _ReportCard(report: (item as _ReportItem).report);
           },
         );
@@ -182,14 +223,28 @@ class _EvidenceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(evidence.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(
+                      evidence.name,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(evidence.description, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140))),
+                    Text(
+                      evidence.description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withAlpha(140),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right, size: 20, color: colorScheme.onSurface.withAlpha(80)),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: colorScheme.onSurface.withAlpha(80),
+              ),
             ],
           ),
         ),
@@ -203,21 +258,41 @@ class _EvidenceCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: colorScheme.onSurface.withAlpha(60), borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            Text(evidence.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(evidence.detailedDescription, style: theme.textTheme.bodyMedium),
-          ],
-        ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder:
+          (_) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withAlpha(60),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  evidence.name,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  evidence.detailedDescription,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
     );
   }
 }
@@ -234,7 +309,13 @@ class _ReportCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentScreen(title: report.title, body: report.body)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (_) => DocumentScreen(title: report.title, body: report.body),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -247,14 +328,28 @@ class _ReportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(report.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(
+                      report.title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(report.description, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140))),
+                    Text(
+                      report.description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withAlpha(140),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right, size: 20, color: colorScheme.onSurface.withAlpha(80)),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: colorScheme.onSurface.withAlpha(80),
+              ),
             ],
           ),
         ),

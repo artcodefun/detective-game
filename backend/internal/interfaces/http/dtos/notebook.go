@@ -5,6 +5,7 @@ import (
 
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -27,14 +28,14 @@ type NotebookEntry struct {
 	Timestamp   time.Time `json:"timestamp"`
 }
 
-func ChronologyEntriesFromReadModel(chronology *readmodels.Chronology, translator ports.Translator) []ChronologyEntry {
-	entries := make([]ChronologyEntry, len(chronology.Entries))
-	for i, entry := range chronology.Entries {
+func ChronologyEntriesFromReadModel(entriesModel []readmodels.ChronologyEntry, translator ports.Translator, locale domain.Locale) []ChronologyEntry {
+	entries := make([]ChronologyEntry, len(entriesModel))
+	for i, entry := range entriesModel {
 		details := make([]NotebookEntry, len(entry.Details))
 		for j, detail := range entry.Details {
 			details[j] = NotebookEntry{ID: detail.ID, Type: detail.Type, CharacterID: detail.CharacterID, Description: detail.Description, UserTags: detail.UserTags, UserNote: detail.UserNote, Timestamp: detail.Timestamp}
 		}
-		entries[i] = ChronologyEntry{ID: entry.ID, OriginID: entry.OriginID, EventType: entry.EventType, Title: translator.Translate(chronology.ContentLocale, entry.Title), Timestamp: entry.Timestamp, Details: details}
+		entries[i] = ChronologyEntry{ID: entry.ID, OriginID: entry.OriginID, EventType: entry.EventType, Title: translator.Translate(locale, entry.Title), Timestamp: entry.Timestamp, Details: details}
 	}
 	return entries
 }

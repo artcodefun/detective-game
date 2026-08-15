@@ -6,11 +6,20 @@ import (
 	"github.com/artcodefun/detective-game/backend/internal/application"
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
 	"github.com/artcodefun/detective-game/backend/internal/application/readmodels"
+	"github.com/artcodefun/detective-game/backend/internal/domain"
 	"github.com/google/uuid"
 )
 
 type SessionQueries struct {
 	ReadStore ports.SessionReadRepository
+}
+
+func (q *SessionQueries) GetSessionLocale(ctx context.Context, userID, sessionID uuid.UUID) (domain.Locale, error) {
+	session, err := q.ReadStore.GetSessionByID(ctx, userID, sessionID)
+	if err != nil {
+		return "", application.WrapError(err)
+	}
+	return session.ContentLocale, nil
 }
 
 func NewSessionQueries(readStore ports.SessionReadRepository) *SessionQueries {

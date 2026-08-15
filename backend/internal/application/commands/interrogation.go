@@ -83,11 +83,7 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
-	if err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-	resp, err := c.LLM.RespondInInterrogation(ctx, session.ContentLocale, *char, message)
+	resp, err := c.LLM.RespondInInterrogation(ctx, actor.SessionContentLocale, *char, message)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}

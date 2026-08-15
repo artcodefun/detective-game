@@ -17,7 +17,7 @@ func NewCommands(a *Adapters) *Commands {
 		Scenario:      commands.NewScenarioCommands(a.Users, a.Sessions, a.LLM, a.Characters, a.Evidence, a.Chronology),
 		Interrogation: commands.NewInterrogationCommands(a.Sessions, a.Interrogations, a.Characters, a.Chat, a.LLM, a.Chronology),
 		Evaluation:    commands.NewEvaluationCommands(a.Sessions, a.LLM, a.Chronology),
-		Actions:       commands.NewActionCommands(a.Sessions, a.Reports, a.LLM, a.Chronology),
+		Actions:       commands.NewActionCommands(a.Sessions, a.Reports, a.Evidence, a.Characters, a.LLM, a.Chronology),
 		Notebook:      commands.NewNotebookCommands(a.Chronology),
 	}
 }

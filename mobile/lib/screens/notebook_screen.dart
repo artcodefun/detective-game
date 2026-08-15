@@ -665,6 +665,8 @@ class _TagNoteSheetState extends State<_TagNoteSheet> {
             controller: _noteController,
             maxLines: 3,
             minLines: 1,
+            textInputAction: TextInputAction.done,
+            onEditingComplete: () => FocusScope.of(context).unfocus(),
             decoration: InputDecoration(
               hintText: 'Ваш комментарий...',
               border: OutlineInputBorder(

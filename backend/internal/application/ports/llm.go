@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/artcodefun/detective-game/backend/internal/domain"
-	"github.com/google/uuid"
 )
 
 type ScenarioOutput struct {
@@ -32,5 +31,5 @@ type LlmService interface {
 	GenerateScenario(ctx context.Context, locale domain.Locale) (*ScenarioOutput, error)
 	RespondInInterrogation(ctx context.Context, locale domain.Locale, character domain.Character, playerMessage string) (*LlmInterrogationResponse, error)
 	EvaluateReport(ctx context.Context, locale domain.Locale, playerReport domain.FinalReport, groundTruth domain.Crime) (*LlmFeedbackResponse, error)
-	RunAction(ctx context.Context, locale domain.Locale, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error)
+	RunAction(ctx context.Context, locale domain.Locale, actionName string, crime domain.Crime, timeline domain.Timeline, evidence *domain.Evidence, character *domain.Character, alibiText *string) (string, error)
 }

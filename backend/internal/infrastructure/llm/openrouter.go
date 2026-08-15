@@ -729,13 +729,25 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 	}, nil
 }
 
-func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, actionName string, evidenceID *uuid.UUID, characterID *uuid.UUID, alibiText *string) (string, error) {
-	var contextParts []string
-	if evidenceID != nil {
-		contextParts = append(contextParts, fmt.Sprintf("улика ID: %s", evidenceID))
+func formatTimeline(timeline domain.Timeline) string {
+	if len(timeline.Entries) == 0 {
+		return "нет записей"
 	}
-	if characterID != nil {
-		contextParts = append(contextParts, fmt.Sprintf("персонаж ID: %s", characterID))
+
+	var b strings.Builder
+	for _, entry := range timeline.Entries {
+		fmt.Fprintf(&b, "- %s: %s\n", entry.Time, entry.Event)
+	}
+	return b.String()
+}
+
+func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, actionName string, crime domain.Crime, timeline domain.Timeline, evidence *domain.Evidence, character *domain.Character, alibiText *string) (string, error) {
+	var contextParts []string
+	if evidence != nil {
+		contextParts = append(contextParts, fmt.Sprintf("улика: %s — %s", evidence.Name, evidence.DetailedDescription))
+	}
+	if character != nil {
+		contextParts = append(contextParts, fmt.Sprintf("персонаж: %s, %s", character.Name, character.Profession))
 	}
 	if alibiText != nil {
 		contextParts = append(contextParts, fmt.Sprintf("текст алиби: %s", *alibiText))
@@ -756,8 +768,8 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, 
 	}
 
 	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON." + languageInstruction(locale)},
-		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s. Контекст: %s. Верни результат в 2-3 предложениях.", label, strings.Join(contextParts, ", "))},
+		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON. Не упоминай внутренние идентификаторы, UUID или технические данные; используй только понятные человеку названия улик и имена персонажей. Результат должен строго следовать объективному контексту дела: не придумывай новых событий, следов, звонков, транзакций или участников. Не раскрывай решение дела целиком, если оно не следует непосредственно из результата запрошенного действия." + languageInstruction(locale)},
+		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s.\n\nОбъективные обстоятельства преступления:\nЖертва: %s\nМотив: %s\nСпособ: %s\nВремя: %s\n\nОбъективный таймлайн:\n%s\nКонтекст запроса: %s\n\nВерни результат в 2-3 предложениях.", label, crime.Victim, crime.Motive, crime.Method, crime.TimeOfCrime, formatTimeline(timeline), strings.Join(contextParts, ", "))},
 	}, false)
 	if err != nil {
 		return "", err

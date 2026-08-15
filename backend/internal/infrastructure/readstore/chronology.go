@@ -13,19 +13,14 @@ import (
 )
 
 type ChronologyReadRepo struct {
-	coll     *mongo.Collection
-	sessions *mongo.Collection
+	coll *mongo.Collection
 }
 
 func NewChronologyReadRepo(db *mongo.Database) *ChronologyReadRepo {
-	return &ChronologyReadRepo{coll: db.Collection("chronology"), sessions: db.Collection("sessions")}
+	return &ChronologyReadRepo{coll: db.Collection("chronology")}
 }
 
-func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.UUID) (*readmodels.Chronology, error) {
-	var session domain.Session
-	if err := r.sessions.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session); err != nil {
-		return nil, wrapFindError("find session for chronology", err)
-	}
+func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.UUID) ([]readmodels.ChronologyEntry, error) {
 	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID}, options.Find().SetSort(bson.D{{Key: "timestamp", Value: 1}}))
 	if err != nil {
 		return nil, fmt.Errorf("list chronology: %w", err)
@@ -43,5 +38,5 @@ func (r *ChronologyReadRepo) GetChronology(ctx context.Context, sessionID uuid.U
 	if items == nil {
 		items = make([]readmodels.ChronologyEntry, 0)
 	}
-	return &readmodels.Chronology{ContentLocale: session.ContentLocale, Entries: items}, nil
+	return items, nil
 }

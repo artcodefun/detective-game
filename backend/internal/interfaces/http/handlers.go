@@ -142,7 +142,7 @@ func (h *Handlers) GetChronology(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ChronologyEntriesFromReadModel(chron, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ChronologyEntriesFromReadModel(chron, h.Translator, actor.SessionContentLocale))
 }
 
 // PATCH /api/v1/chronology/{chronId}/notes/{noteId}
@@ -331,7 +331,7 @@ func (h *Handlers) DNAAnalysis(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/actions/fingerprints
@@ -354,7 +354,7 @@ func (h *Handlers) FingerprintsCheck(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/actions/alibi-check
@@ -378,7 +378,7 @@ func (h *Handlers) AlibiCheck(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/actions/camera-review
@@ -394,7 +394,7 @@ func (h *Handlers) CameraReview(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/actions/call-history
@@ -417,7 +417,7 @@ func (h *Handlers) CallHistory(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/actions/transactions
@@ -440,23 +440,18 @@ func (h *Handlers) TransactionCheck(w http.ResponseWriter, r *http.Request) {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// GET /api/v1/reports/{reportId}
-func (h *Handlers) GetReport(w http.ResponseWriter, r *http.Request) {
+// GET /api/v1/reports
+func (h *Handlers) ListReports(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
-	reportID, err := uuid.Parse(r.PathValue("reportId"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid report id")
-		return
-	}
-	report, err := h.Evidence.GetReport(r.Context(), actor, reportID)
+	reports, err := h.Evidence.ListReports(r.Context(), actor)
 	if err != nil {
 		writeAppError(w, r.Context(), h.Translator, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(report, h.Translator))
+	writeJSON(w, http.StatusOK, dtos.ActionReportsFromReadModels(reports, h.Translator, actor.SessionContentLocale))
 }
 
 // POST /api/v1/reports

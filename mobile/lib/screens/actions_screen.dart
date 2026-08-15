@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../blocs/session_cubit.dart';
+import '../models/action_report.dart';
 import '../models/game_state.dart';
 import '../models/scenario.dart';
 import '../services/api_service.dart';
 
 enum _ActionKind { evidenceAnalysis, suspectAction, camera, alibi }
+
+enum _ActionRequest {
+  dnaAnalysis,
+  fingerprints,
+  callHistory,
+  cameraReview,
+  transactionCheck,
+  alibiCheck,
+}
 
 class _ActionData {
   final IconData icon;
@@ -14,6 +25,7 @@ class _ActionData {
   final String description;
   final int cost;
   final _ActionKind kind;
+  final _ActionRequest request;
 
   const _ActionData({
     required this.icon,
@@ -21,16 +33,18 @@ class _ActionData {
     required this.description,
     required this.cost,
     required this.kind,
+    required this.request,
   });
 }
 
-final _actions = [
+const _actions = [
   _ActionData(
     icon: Icons.science,
     name: 'Анализ ДНК',
     description: 'Исследовать вещдоки на наличие ДНК',
     cost: 1,
     kind: _ActionKind.evidenceAnalysis,
+    request: _ActionRequest.dnaAnalysis,
   ),
   _ActionData(
     icon: Icons.fingerprint,
@@ -38,6 +52,7 @@ final _actions = [
     description: 'Проверить отпечатки на вещдоках',
     cost: 1,
     kind: _ActionKind.evidenceAnalysis,
+    request: _ActionRequest.fingerprints,
   ),
   _ActionData(
     icon: Icons.phone_in_talk,
@@ -45,6 +60,7 @@ final _actions = [
     description: 'Запросить детализацию звонков подозреваемого',
     cost: 2,
     kind: _ActionKind.suspectAction,
+    request: _ActionRequest.callHistory,
   ),
   _ActionData(
     icon: Icons.videocam,
@@ -52,6 +68,7 @@ final _actions = [
     description: 'Просмотреть записи камер наблюдения',
     cost: 2,
     kind: _ActionKind.camera,
+    request: _ActionRequest.cameraReview,
   ),
   _ActionData(
     icon: Icons.account_balance,
@@ -59,6 +76,7 @@ final _actions = [
     description: 'Проверить движение средств по счетам',
     cost: 2,
     kind: _ActionKind.suspectAction,
+    request: _ActionRequest.transactionCheck,
   ),
   _ActionData(
     icon: Icons.access_time,
@@ -66,6 +84,7 @@ final _actions = [
     description: 'Сверить показания с фактическим временем',
     cost: 1,
     kind: _ActionKind.alibi,
+    request: _ActionRequest.alibiCheck,
   ),
 ];
 
@@ -75,8 +94,7 @@ class ActionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ap = context.watch<SessionCubit>().state?.actionPoints ?? 0;
-
+    final actionPoints = context.watch<SessionCubit>().state?.actionPoints ?? 0;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Действия'),
@@ -89,8 +107,10 @@ class ActionsScreen extends StatelessWidget {
                 Icon(Icons.search, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: 4),
                 Text(
-                  '$ap',
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  '$actionPoints',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -104,7 +124,9 @@ class ActionsScreen extends StatelessWidget {
           children: [
             Text(
               'Потратьте очки действий, чтобы заказать анализ или запросить информацию',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(140)),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withAlpha(140),
+              ),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -113,7 +135,10 @@ class ActionsScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 1.3,
-                children: _actions.map((a) => _ActionCard(action: a)).toList(),
+                children:
+                    _actions
+                        .map((action) => _ActionCard(action: action))
+                        .toList(),
               ),
             ),
           ],
@@ -148,7 +173,9 @@ class _ActionCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   action.name,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -161,7 +188,11 @@ class _ActionCard extends StatelessWidget {
                 ),
                 child: Text(
                   '${action.cost} AP',
-                  style: TextStyle(fontSize: 11, color: colorScheme.primary, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -175,264 +206,113 @@ class _ActionCard extends StatelessWidget {
     final session = context.read<SessionCubit>().state;
     if (session == null) return;
     if (session.actionPoints < action.cost) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Недостаточно очков действий')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Недостаточно очков действий')),
+      );
       return;
     }
-    _showActionSheet(context);
-  }
-
-  Future<void> _executeAction(
-    BuildContext context, {
-    String? evidenceId,
-    String? characterId,
-    String? alibiText,
-  }) async {
-    final api = context.read<ApiService>();
-    final cubit = context.read<SessionCubit>();
-    try {
-      switch (action.name) {
-        case 'Анализ ДНК':
-          await api.dnaAnalysis(evidenceId!);
-        case 'Отпечатки пальцев':
-          await api.fingerprintsCheck(evidenceId!);
-        case 'История звонков':
-          await api.callHistory(characterId!);
-        case 'Записи с камер':
-          await api.cameraReview();
-        case 'Банковские операции':
-          await api.transactionCheck(characterId!);
-        case 'Проверка алиби':
-          await api.alibiCheck(characterId: characterId!, alibiText: alibiText!);
-        default:
-          return;
-      }
-      await cubit.refreshSession();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${action.name} — выполнен')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
-      }
-    }
-  }
-
-  Future<void> _showActionSheet(BuildContext context) async {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final api = context.read<ApiService>();
-
-    Widget Function(BuildContext ctx) buildContent;
-    switch (action.kind) {
-      case _ActionKind.evidenceAnalysis:
-        String? selected;
-        buildContent =
-            (ctx) => StatefulBuilder(
-              builder: (ctx, setSheetState) {
-                return FutureBuilder<List<Evidence>>(
-                  future: api.listEvidence().then(
-                    (list) =>
-                        list
-                            .where(
-                              (e) =>
-                                  ![
-                                    'dna_analysis',
-                                    'fingerprints',
-                                    'alibi_check',
-                                    'camera_review',
-                                    'call_history',
-                                    'transaction_check',
-                                  ].contains(e.type),
-                            )
-                            .toList(),
-                  ),
-                  builder: (_, snapshot) {
-                    final evidenceList = snapshot.data ?? [];
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Выберите улику для анализа',
-                          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
-                        ),
-                        const SizedBox(height: 12),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 240),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children:
-                                evidenceList.map((e) {
-                                  final isSelected = selected == e.id;
-                                  return ListTile(
-                                    title: Text(e.name),
-                                    subtitle: Text(e.description, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    leading: Icon(
-                                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                    ),
-                                    onTap: () => setSheetState(() => selected = e.id),
-                                    dense: true,
-                                  );
-                                }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed:
-                                selected != null
-                                    ? () {
-                                      Navigator.pop(ctx);
-                                      _executeAction(ctx, evidenceId: selected);
-                                    }
-                                    : null,
-                            child: Text('Заказать (${action.cost} AP)'),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-      case _ActionKind.suspectAction:
-        String? selected;
-        buildContent =
-            (ctx) => StatefulBuilder(
-              builder: (ctx, setSheetState) {
-                return FutureBuilder<List<Character>>(
-                  future: api.listCharacters(),
-                  builder: (_, snapshot) {
-                    final chars = snapshot.data ?? [];
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Выберите подозреваемого',
-                          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
-                        ),
-                        const SizedBox(height: 12),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 240),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children:
-                                chars.map((c) {
-                                  final isSelected = selected == c.id;
-                                  return ListTile(
-                                    title: Text(c.name),
-                                    subtitle: Text(c.profession, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    leading: Icon(
-                                      isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                                    ),
-                                    onTap: () => setSheetState(() => selected = c.id),
-                                    dense: true,
-                                  );
-                                }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed:
-                                selected != null
-                                    ? () {
-                                      Navigator.pop(ctx);
-                                      _executeAction(ctx, characterId: selected);
-                                    }
-                                    : null,
-                            child: Text('Заказать (${action.cost} AP)'),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-      case _ActionKind.camera:
-        buildContent =
-            (ctx) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Будут запрошены записи с камер наблюдения за вечер предполагаемого преступления.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Стоимость: ${action.cost} AP',
-                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _executeAction(ctx);
-                    },
-                    child: const Text('Заказать'),
-                  ),
-                ),
-              ],
-            );
-      case _ActionKind.alibi:
-        buildContent = (ctx) {
-          final controller = TextEditingController();
-          return StatefulBuilder(
-            builder: (ctx, setSheetState) {
-              final hasText = controller.text.trim().isNotEmpty;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Проверка алиби — опрос свидетелей и проверка места.', style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    maxLines: 4,
-                    onChanged: (_) => setSheetState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Опишите алиби, которое нужно проверить...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed:
-                          hasText
-                              ? () {
-                                Navigator.pop(ctx);
-                                _executeAction(ctx, alibiText: controller.text.trim());
-                              }
-                              : null,
-                      child: Text('Заказать (${action.cost} AP)'),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        };
-    }
-
-    if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (ctx) => Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ActionSheet(action: action),
+    );
+  }
+}
+
+class _ActionSheet extends StatefulWidget {
+  final _ActionData action;
+
+  const _ActionSheet({required this.action});
+
+  @override
+  State<_ActionSheet> createState() => _ActionSheetState();
+}
+
+class _ActionSheetState extends State<_ActionSheet> {
+  Future<List<Evidence>>? _evidenceFuture;
+  Future<List<Character>>? _charactersFuture;
+  final _alibiController = TextEditingController();
+  String? _evidenceID;
+  String? _characterID;
+  bool _isSubmitting = false;
+  ActionReport? _report;
+
+  @override
+  void initState() {
+    super.initState();
+    final api = context.read<ApiService>();
+    switch (widget.action.kind) {
+      case _ActionKind.evidenceAnalysis:
+        _evidenceFuture = api.listEvidence();
+      case _ActionKind.suspectAction:
+      case _ActionKind.alibi:
+        _charactersFuture = api.listCharacters();
+      case _ActionKind.camera:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _alibiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _isSubmitting = true);
+    try {
+      final api = context.read<ApiService>();
+      final sessionCubit = context.read<SessionCubit>();
+      final report = await switch (widget.action.request) {
+        _ActionRequest.dnaAnalysis => api.dnaAnalysis(_evidenceID!),
+        _ActionRequest.fingerprints => api.fingerprintsCheck(_evidenceID!),
+        _ActionRequest.callHistory => api.callHistory(_characterID!),
+        _ActionRequest.cameraReview => api.cameraReview(),
+        _ActionRequest.transactionCheck => api.transactionCheck(_characterID!),
+        _ActionRequest.alibiCheck => api.alibiCheck(
+          characterId: _characterID!,
+          alibiText: _alibiController.text.trim(),
+        ),
+      };
+      await sessionCubit.refreshSession();
+      if (!mounted) return;
+      setState(() {
+        _report = report;
+        _isSubmitting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return PopScope(
+      canPop: !_isSubmitting,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            20 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+            ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,13 +328,321 @@ class _ActionCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(action.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  buildContent(ctx),
+                  if (_report != null)
+                    _buildReport(theme, colorScheme, _report!)
+                  else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.action.name,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (!_isSubmitting)
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Закрыть',
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _isSubmitting
+                        ? _buildProgress(theme)
+                        : _buildForm(theme, colorScheme),
+                  ],
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgress(ThemeData theme) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Выполняем действие…'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm(ThemeData theme, ColorScheme colorScheme) {
+    switch (widget.action.kind) {
+      case _ActionKind.evidenceAnalysis:
+        return _buildEvidenceForm(theme, colorScheme);
+      case _ActionKind.suspectAction:
+        return _buildCharacterForm(theme, colorScheme);
+      case _ActionKind.camera:
+        return _buildCameraForm(theme, colorScheme);
+      case _ActionKind.alibi:
+        return _buildAlibiForm(theme, colorScheme);
+    }
+  }
+
+  Widget _buildEvidenceForm(ThemeData theme, ColorScheme colorScheme) {
+    return FutureBuilder<List<Evidence>>(
+      future: _evidenceFuture,
+      builder: (_, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final evidence = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Выберите улику для анализа',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withAlpha(140),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSelectableList(
+              evidence
+                  .map(
+                    (item) => (
+                      id: item.id,
+                      title: item.name,
+                      subtitle: item.description,
+                    ),
+                  )
+                  .toList(),
+              _evidenceID,
+              (id) => setState(() => _evidenceID = id),
+            ),
+            const SizedBox(height: 12),
+            _submitButton(_evidenceID != null),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCharacterForm(ThemeData theme, ColorScheme colorScheme) {
+    return FutureBuilder<List<Character>>(
+      future: _charactersFuture,
+      builder: (_, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final characters = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Выберите подозреваемого',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withAlpha(140),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSelectableList(
+              characters
+                  .map(
+                    (item) => (
+                      id: item.id,
+                      title: item.name,
+                      subtitle: item.profession,
+                    ),
+                  )
+                  .toList(),
+              _characterID,
+              (id) => setState(() => _characterID = id),
+            ),
+            const SizedBox(height: 12),
+            _submitButton(_characterID != null),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCameraForm(ThemeData theme, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Будут запрошены записи с камер наблюдения за вечер предполагаемого преступления.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Стоимость: ${widget.action.cost} AP',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _submitButton(true),
+      ],
+    );
+  }
+
+  Widget _buildAlibiForm(ThemeData theme, ColorScheme colorScheme) {
+    return FutureBuilder<List<Character>>(
+      future: _charactersFuture,
+      builder: (_, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final characters = snapshot.data!;
+        final canSubmit =
+            _characterID != null && _alibiController.text.trim().isNotEmpty;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Выберите подозреваемого и опишите алиби для проверки.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            _buildSelectableList(
+              characters
+                  .map(
+                    (item) => (
+                      id: item.id,
+                      title: item.name,
+                      subtitle: item.profession,
+                    ),
+                  )
+                  .toList(),
+              _characterID,
+              (id) => setState(() => _characterID = id),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _alibiController,
+              maxLines: 4,
+              onEditingComplete: () => FocusScope.of(context).unfocus(),
+              onChanged: (_) => setState(() {}),
+              scrollPadding: EdgeInsets.symmetric(vertical: 100),
+              decoration: InputDecoration(
+                hintText: 'Опишите алиби, которое нужно проверить...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _submitButton(canSubmit),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSelectableList(
+    List<({String id, String title, String subtitle})> items,
+    String? selectedID,
+    ValueChanged<String> onSelected,
+  ) {
+    return Column(
+      children:
+          items
+              .map(
+                (item) => ListTile(
+                  title: Text(item.title),
+                  subtitle: Text(
+                    item.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  leading: Icon(
+                    selectedID == item.id
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                  ),
+                  onTap: () => onSelected(item.id),
+                  dense: true,
+                ),
+              )
+              .toList(),
+    );
+  }
+
+  Widget _submitButton(bool enabled) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: enabled ? _submit : null,
+        child: Text('Заказать (${widget.action.cost} AP)'),
+      ),
+    );
+  }
+
+  Widget _buildReport(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    ActionReport report,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.check_circle, color: colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                report.title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          report.description,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withAlpha(140),
+          ),
+        ),
+        const Divider(height: 32),
+        MarkdownBody(data: report.body),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Готово'),
+          ),
+        ),
+      ],
     );
   }
 }

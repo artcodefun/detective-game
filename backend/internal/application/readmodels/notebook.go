@@ -7,11 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Chronology struct {
-	ContentLocale domain.Locale
-	Entries       []ChronologyEntry
-}
-
 type ChronologyEntry struct {
 	ID        uuid.UUID  `json:"id"`
 	OriginID  *uuid.UUID `json:"origin_id,omitempty"`
@@ -32,13 +27,12 @@ type NotebookEntry struct {
 }
 
 type ActionReport struct {
-	ID            uuid.UUID `json:"id"`
-	Type          string    `json:"type"`
-	Title         domain.Translation
-	ContentLocale domain.Locale
-	Description   string     `json:"description"`
-	Body          string     `json:"body"`
-	EvidenceID    *uuid.UUID `json:"evidence_id,omitempty"`
-	CharacterID   *uuid.UUID `json:"character_id,omitempty"`
-	Timestamp     time.Time  `json:"timestamp"`
+	ID          uuid.UUID `json:"id"`
+	Type        string    `json:"type"`
+	Title       domain.Translation
+	Description string     `json:"description"`
+	Body        string     `json:"body"`
+	EvidenceID  *uuid.UUID `json:"evidence_id,omitempty"`
+	CharacterID *uuid.UUID `json:"character_id,omitempty"`
+	Timestamp   time.Time  `json:"timestamp"`
 }

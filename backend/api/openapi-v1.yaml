@@ -542,27 +542,22 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /api/v1/reports/{reportId}:
+  /api/v1/reports:
     get:
-      operationId: getReport
+      operationId: listReports
       tags: [Reports]
-      summary: Получить отчёт
-      description: Возвращает отчёт лаборатории (результат анализа или проверки).
-      parameters:
-        - $ref: "#/components/parameters/ReportId"
+      summary: Получить список отчётов
       responses:
         "200":
-          description: Отчёт
+          description: Отчёты по действиям в текущей сессии
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionReport"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  /api/v1/reports:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionReport"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: submitReport
       tags: [Reports]
