@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,7 +56,25 @@ type chatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (c *OpenRouterClient) chat(ctx context.Context, messages []chatMessage, jsonMode bool) (string, error) {
+func (c *OpenRouterClient) chat(ctx context.Context, stage string, messages []chatMessage, jsonMode bool) (content string, err error) {
+	startedAt := time.Now()
+	requestChars := 0
+	for _, message := range messages {
+		requestChars += len(message.Content)
+	}
+	slog.InfoContext(ctx, "llm request started", "stage", stage)
+	slog.DebugContext(ctx, "llm request payload", "stage", stage, "json_mode", jsonMode, "message_count", len(messages), "request_chars", requestChars, "messages", messages)
+	defer func() {
+		attrs := []any{"stage", stage, "duration", time.Since(startedAt)}
+		if err != nil {
+			attrs = append(attrs, "error", err)
+			slog.ErrorContext(ctx, "llm request failed", attrs...)
+			return
+		}
+		slog.InfoContext(ctx, "llm request completed", attrs...)
+		slog.DebugContext(ctx, "llm response payload", "stage", stage, "response_chars", len(content), "content", content)
+	}()
+
 	req := chatRequest{
 		Model:    c.model,
 		Messages: messages,
@@ -85,6 +105,9 @@ func (c *OpenRouterClient) chat(ctx context.Context, messages []chatMessage, jso
 	if err != nil {
 		return "", fmt.Errorf("read response: %w", err)
 	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("openrouter returned HTTP %d: %s", resp.StatusCode, truncateForError(string(respBody)))
+	}
 
 	var chatResp chatResponse
 	if err := json.Unmarshal(respBody, &chatResp); err != nil {
@@ -100,6 +123,14 @@ func (c *OpenRouterClient) chat(ctx context.Context, messages []chatMessage, jso
 	}
 
 	return chatResp.Choices[0].Message.Content, nil
+}
+
+func truncateForError(value string) string {
+	const limit = 500
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit] + "…"
 }
 
 type llmMemory struct {
@@ -161,8 +192,58 @@ type llmPrivateResponse struct {
 	Characters []llmPrivateCharacter `json:"characters"`
 }
 
-func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.Locale) (*ports.ScenarioOutput, error) {
-	systemPrompt := `Ты — генератор детективных сценариев для игры. Создай запутанное дело об убийстве.
+func (c *OpenRouterClient) generateScenarioDraft(ctx context.Context, locale domain.Locale) (string, error) {
+	systemPrompt := `Ты — автор и логический редактор детективного сценария. Создай внутренний объективный план нового дела об убийстве. Он известен только автору и прямо раскрывает всю истину: жертву, убийцу, мотив, подготовку, точный момент и способ убийства, сокрытие следов и обнаружение тела. Не создавай интригу и не оставляй неизвестных обстоятельств.
+
+Верни Markdown строго с тремя разделами. Не используй JSON и не добавляй другие разделы.
+
+## Участники
+Сначала кратко опиши жертву и ровно пять уникальных живых подозреваемых; жертва не входит в их число. Для каждого подозреваемого укажи имя, возраст, профессию, характер, публичную связь с жертвой, значимые отношения с другими участниками и его исходную цель на день убийства. Исходная цель должна быть правдоподобна и не раскрывать заранее тайный преступный замысел, сокрытие следов или иной решающий поворот дела: такие намерения могут сформироваться и быть объяснены только в последующих событиях таймлайна. Цель должна объяснять, почему он находится в этом месте и какие действия готов предпринять. Каждая указанная цель обязана вызвать хотя бы одно последующее действие в таймлайне; не добавляй декоративных целей, которые не влияют на события.
+
+## Объективный таймлайн дня
+Дай 14-20 событий в строгом хронологическом порядке с конкретным временем. Это полная объективная истина, а не отчёт следствия. Каждое существенное событие должно ясно отвечать на вопросы: кто, что, где сделал, зачем сделал и к чему это привело. Непосредственная мотивация должна вытекать из цели персонажа, его отношений или предыдущего события.
+
+Не описывай действие без причины: персонаж не может брать, переносить, прятать, оставлять или использовать предмет «просто так». Для обычного действия достаточно короткой практической причины; для подготовки убийства, сокрытия следов и инсценировок обязательно объясни цель и ожидаемый эффект. Причина действия должна быть известна к этому моменту таймлайна: нельзя мотивировать поступок событием, которое произойдёт позже. События должны охватить действия всех подозреваемых, подготовку преступления, убийство, действия после него и обнаружение тела.
+
+Один и тот же предмет всегда называй одинаково; не заменяй и не переименовывай его по ходу истории. Для каждого из пяти финальных предметов построй непрерывную цепочку: первое появление → каждое получение, перенос, использование или изменение → последнее состояние перед прибытием полиции. Не пропускай звенья этой цепочки. Предмет не может находиться в двух местах, быть одновременно у двух людей, быть и внутри другого предмета, и вне его, или получить новое повреждение без отдельного события передачи, перемещения или изменения состояния. Если предмет меняет владельца, местоположение, содержимое или состояние, явно опиши соответствующее действие. Орудие убийства и любые его части должны иметь один и тот же путь и финальное состояние: не подменяй его другим предметом. Для потенциальных ДНК, отпечатков и иных экспертиз укажи объективную физическую причину контакта или следа, но не объявляй лабораторные результаты.
+
+## Предметы к прибытию полиции
+Перечисли ровно пять физических предметов или документов, находящихся на месте к прибытию полиции. Для каждого укажи неизменное короткое название, точное финальное место и видимое состояние. Этот список только повторяет последнее состояние предмета из таймлайна: место, состояние, содержимое и название должны в точности совпадать. Не добавляй сюда новые перемещения, повреждения, упаковку, части предмета или иные факты, которых нет в последнем относящемся к нему событии. Большая часть предметов должна быть связана с раскрытием, но один или два могут быть случайными или второстепенными и не относиться к убийству. Не повторяй здесь полную цепочку предмета — она уже должна быть в таймлайне.
+
+Не включай результаты действий игрока: видеозаписи, расшифровки звонков, банковские данные, результаты ДНК или отпечатков. Для цифровой улики допустимо только само устройство, но не его содержимое.
+
+Перед ответом молча проверь, что у всех существенных действий есть мотивация, цели персонажей не противоречат их поступкам, а путь каждого из пяти предметов непрерывен до прибытия полиции. Для каждого пункта финального списка найди последнее событие о нём в таймлайне и сверь с ним название, место, состояние и содержимое; при любом расхождении исправь таймлайн или список до ответа.`
+
+	content, err := c.chat(ctx, "scenario.draft", []chatMessage{
+		{Role: "system", Content: systemPrompt + languageInstruction(locale)},
+		{Role: "user", Content: "Создай внутренний план нового детективного дела об убийстве."},
+	}, false)
+	if err != nil {
+		return "", fmt.Errorf("generate scenario draft: %w", err)
+	}
+	if strings.TrimSpace(content) == "" {
+		return "", fmt.Errorf("generate scenario draft: empty response")
+	}
+	return content, nil
+}
+
+func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.Locale) (output *ports.ScenarioOutput, err error) {
+	startedAt := time.Now()
+	slog.InfoContext(ctx, "scenario generation started")
+	defer func() {
+		if err != nil {
+			slog.ErrorContext(ctx, "scenario generation failed", "duration", time.Since(startedAt), "error", err)
+			return
+		}
+		slog.InfoContext(ctx, "scenario generation completed", "duration", time.Since(startedAt))
+	}()
+
+	draft, err := c.generateScenarioDraft(ctx, locale)
+	if err != nil {
+		return nil, err
+	}
+
+	systemPrompt := `Ты преобразуешь готовый внутренний план детективного дела в строгую структуру. План является единственным источником истины: не добавляй новых персонажей, предметов, событий, контактов или результатов анализов и не меняй причинную цепочку.
 
 Верни ТОЛЬКО JSON, без текста до или после, без Markdown-форматирования:
 
@@ -204,115 +285,59 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.L
   ]
 }
 
-=== ТАЙМЛАЙН ===
-Это ПОЛНАЯ ОБЪЕКТИВНАЯ ХРОНИКА мира, известная только тебе. Это не отчёт
-криминалистов и не загадка: в ней нет неизвестных обстоятельств, догадок,
-формулировок «было найдено» без объяснения и скрытых причин.
-
-Дай 14-20 событий в строгом хронологическом порядке. Каждое event — ясное,
-развёрнутое описание факта: КТО совершил действие, ЧТО именно сделал, ГДЕ,
-с каким предметом и к чему это привело. Указывай конкретные локации в тексте.
-Не пиши «предмет появился», «улика найдена», «смартфон упал» без действующего
-лица и причины.
-
-Таймлайн обязан содержать:
-- перемещения и существенные действия всех пяти персонажей;
-- подготовку преступления, сам момент преступления, действия преступника
-  после него и обнаружение тела конкретным человеком;
-- полную причинную цепочку для КАЖДОЙ релевантной улики: кто и когда создал,
-  принёс, использовал, переместил, спрятал или оставил предмет; где предмет
-  оказался к началу расследования; кто его затем увидел или нашёл;
-- все инсценировки, ложные следы и попытки отвлечь подозрения: кто их создал,
-  зачем и почему выбранная деталь должна вести к конкретной версии;
-- непрерывную, непротиворечивую последовательность. Не меняй владельца,
-  местоположение, назначение или автора предмета в других частях JSON.
-- для каждой улики укажи последнего человека, который с ней взаимодействовал,
-  и точное местоположение к моменту прибытия полиции. Если предмет перемещён,
-  дальнейшие события обязаны продолжать это состояние; полиция может изъять
-  предмет только там, где он действительно находится, либо после явно
-  описанной передачи или возврата. Называй один и тот же предмет одинаково
-  во всех относящихся к нему событиях.
-
-Таймлайн — источник истины для evidence и memories. Ни одна релевантная улика,
-никакое действие из memories или secrets не может появиться, если его нет в
-timeline. Исключение только для явно случайной, не связанной с делом улики.
-
-=== УЛИКИ (evidence) ===
-Это предметы, найденные НА МЕСТЕ ПРЕСТУПЛЕНИЯ. Только то, что криминалист видит при первом осмотре:
-- physical: орудие убийства, одежда со следами, разбитые предметы, следы обуви, волокна ткани, бокалы, пузырьки
-- digital: телефон, ноутбук, флешка, диск — САМИ УСТРОЙСТВА. НЕ ИХ СОДЕРЖИМОЕ. Контент устройств — предмет действий игрока (call_history, transaction_check и т.д.)
-- document: записки, письма, финансовые отчёты, дневники, контракты
-
-Сначала закончи timeline, затем создавай evidence ТОЛЬКО из предметов и следов,
-которые уже упомянуты в timeline. Описание улики обязано совпадать с её
-происхождением, владельцем, местом и состоянием в timeline. Не меняй автора
-записки, владельца одежды или расположение предмета. Если предмет подброшен
-для отвода подозрений, timeline должен объяснять, на кого и почему он указывает.
-
-Примеры того, что НЕЛЬЗЯ класть в evidence:
-- ❌ "запись с камеры наблюдения" (это результат camera_review)
-- ❌ "расшифровка звонков" (это результат call_history)
-- ❌ "отпечатки принадлежат X" (это результат fingerprints)
-- ❌ "ДНК жертвы на орудии" (это результат dna_analysis)
-
-=== DETAILED DESCRIPTION ===
-Развёрнутое описание улики — как в отчёте криминалиста. 3-5 предложений: где именно нашли, в каком состоянии предмет, что видно невооружённым глазом (цвет, форма, повреждения, следы). НЕ пиши «требуется анализ», «необходимо проверить» — это детектив решит сам. НЕ раскрывай результаты анализов (ДНК, отпечатки, содержимое телефона).
-
-✅ Хорошие примеры:
-- "Хрустальный бокал из набора «Леннокс», стоит на прикроватной тумбе справа от кровати. На донышке — мутный белёсый осадок. На внешней стенке — частичный след губной помады кораллового оттенка. Рядом с бокалом — лужица жидкости, уже подсохшая."
-- "Смартфон «Самсунг», лежит на полу возле входной двери, экраном вниз. Угол экрана разбит — похоже, падал. Корпус в чехле из крокодиловой кожи с инициалами «А.Р.». Аппарат не реагирует на кнопку включения."
-- "Записка на листе жёлтой бумаги формата А5, приколота кухонным ножом к дверце холодильника. Текст написан синей шариковой ручкой, размашистым почерком, с наклоном вправо. Бумага слегка помята, в левом верхнем углу — бурое пятно размером с монету."
-
-❌ Плохие примеры:
-- "Бокал с остатками жидкости. Требуется анализ содержимого и снятие отпечатков."
-- "Отпечатки пальцев принадлежат Ивану."
-- "В телефоне найдена переписка с жертвой."
-
-=== ПРИВАТНЫЕ ДАННЫЕ ПЕРСОНАЖЕЙ ===
-На этом этапе НЕ генерируй opinions, secrets и memories. Оставь эти поля
-пустыми массивами. Они будут сгенерированы отдельным запросом после проверки
-crime, timeline, characters и evidence.
-
-=== ОБЩИЕ ПРАВИЛА ===
-- characters.id — порядковый номер (1,2,3,4,5)
-- perpetrator_id — номер персонажа-убийцы (совпадает с characters.id)
-- timeline[].character_id — номер персонажа или null
-- Генерируй 5 УНИКАЛЬНЫХ персонажей с разными именами, возрастами и профессиями
-- victim — отдельный человек, не входящий в список characters. Все пять characters
-  должны быть живыми подозреваемыми, доступными для допроса. Никогда не добавляй
-  жертву в characters.
-- personality — подробное описание характера и манеры речи (2-3 предложения)
-- gender — "male" или "female"
-- Все значимые улики ДОЛЖНЫ появляться в timeline с полной причинной цепочкой
-- relationships — ключ это номер персонажа, значение — описание отношений
-- trust — начальное отношение к детективу (0-100). Определи его по характеру,
-  личному опыту и предыстории персонажа. Оно не должно зависеть от того,
-  является ли персонаж преступником или невиновным. Не делай преступника
-  автоматически более закрытым, нервным или враждебным.
-- Всего 5 персонажей и ровно 5 улик
-- ВАЖНО: проверь, что все JSON-массивы и объекты корректно закрыты. Не оставляй ключи без значений.`
+Правила преобразования:
+- Только извлекай и нормализуй сведения из синопсиса. Не исправляй сюжет и не добавляй факты.
+- Сохрани имена людей и названия предметов дословно.
+- Назначь пяти подозреваемым id от 1 до 5; perpetrator_id и character_id должны ссылаться на эти id. Жертва не входит в characters.
+- Разбей прозу на 14-20 атомарных событий в хронологическом порядке. Сохраняй в event описанные место, действие, результат и непосредственную мотивацию существенного действия.
+- Верни ровно пять улик из синопсиса. description — одно предложение о предмете и месте обнаружения; detailed_description — 3-5 предложений только о видимом состоянии и деталях.
+- Не помещай в evidence результаты ДНК, отпечатков, истории звонков, транзакций или просмотра камер. Для digital evidence описывай устройство, а не его содержимое.
+- relationships используют id других персонажей как ключи.
+- opinions, secrets и memories оставь пустыми массивами.
+- trust выбери по характеру персонажа, независимо от его виновности.
+- gender — только "male" или "female"; crime_type — "murder"; тип улики — "physical", "digital" или "document".
+- Проверь только корректность и полноту JSON перед ответом.`
 
 	systemPrompt += languageInstruction(locale)
 
-	content, err := c.chat(ctx, []chatMessage{
+	content, err := c.chat(ctx, "scenario.structure", []chatMessage{
 		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: "Сгенерируй детективный сценарий."},
+		{Role: "user", Content: "Преобразуй этот план в JSON, сохранив все факты и связи:\n\n" + draft},
 	}, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("structure scenario: %w", err)
 	}
 
 	var llmResp llmScenarioResponse
 	if err := json.Unmarshal([]byte(content), &llmResp); err != nil {
-		content2, retryErr := c.chat(ctx, []chatMessage{
+		slog.WarnContext(ctx, "scenario structure parse failed; retrying", "error", err, "response_preview", truncateForError(content))
+		content2, retryErr := c.chat(ctx, "scenario.structure_retry", []chatMessage{
 			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: "Сгенерируй детективный сценарий."},
+			{Role: "user", Content: "Преобразуй этот план в корректный JSON. Проверь синтаксис перед ответом:\n\n" + draft},
 		}, true)
 		if retryErr != nil {
-			return nil, fmt.Errorf("parse scenario (retry failed): %w\n%s", err, content)
+			return nil, fmt.Errorf("parse scenario (retry failed): %w; response: %s", err, truncateForError(content))
 		}
 		if err2 := json.Unmarshal([]byte(content2), &llmResp); err2 != nil {
-			return nil, fmt.Errorf("parse scenario: %w\n%s", err, content)
+			return nil, fmt.Errorf("parse scenario after retry: %w; response: %s", err2, truncateForError(content2))
+		}
+	}
+
+	if err := validateScenario(llmResp); err != nil {
+		return nil, fmt.Errorf("validate structured scenario: %w", err)
+	}
+	review, err := c.reviewScenario(ctx, locale, llmResp)
+	if err != nil {
+		return nil, err
+	}
+	if len(review.Issues) > 0 {
+		slog.WarnContext(ctx, "scenario review found issues; repairing", "issue_count", len(review.Issues), "issues", review.Issues)
+		llmResp, err = c.repairScenario(ctx, locale, llmResp, review.Issues)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateScenario(llmResp); err != nil {
+			return nil, fmt.Errorf("validate repaired scenario: %w", err)
 		}
 	}
 	private, err := c.generatePrivateCharacterData(ctx, locale, llmResp)
@@ -388,7 +413,7 @@ crime, timeline, characters и evidence.
 
 	caseName, caseBrief := c.generateCaseBrief(ctx, locale, domainChars, llmResp.Crime, llmResp.Evidence, llmResp.Timeline)
 
-	return &ports.ScenarioOutput{
+	output = &ports.ScenarioOutput{
 		CaseName:  caseName,
 		CaseBrief: caseBrief,
 		Crime: domain.Crime{
@@ -402,7 +427,174 @@ crime, timeline, characters и evidence.
 		Timeline:   domain.Timeline{Entries: domainTimeline},
 		Characters: domainChars,
 		Evidence:   domainEvidence,
-	}, nil
+	}
+	return output, nil
+}
+
+type llmScenarioReview struct {
+	Issues []string `json:"issues"`
+}
+
+func (c *OpenRouterClient) reviewScenario(ctx context.Context, locale domain.Locale, scenario llmScenarioResponse) (llmScenarioReview, error) {
+	scenarioJSON, err := json.Marshal(scenario)
+	if err != nil {
+		return llmScenarioReview{}, fmt.Errorf("marshal scenario for review: %w", err)
+	}
+
+	systemPrompt := `Ты проверяешь внутреннюю логическую согласованность уже готового JSON детективного сценария. Не изменяй сценарий и не возвращай его заново. Верни ТОЛЬКО JSON формата {"issues":["конкретная проблема"]}.
+
+Включай проблему только если она прямо подтверждается самим JSON: противоречие в мотивации существенного действия, разрыв или противоречие в пути существующей улики, несовпадение финального состояния существующей улики с последним событием о ней, либо лабораторный результат в evidence. Не проверяй, не потерялись ли события, персонажи или предметы по отношению к какому-либо внешнему плану; не требуй добавлять события или улики. Не отмечай стиль, полноту художественного описания или детали, которые не следуют однозначно из JSON. Если подтверждённых проблем нет, верни {"issues":[]}.
+
+Каждое замечание должно быть исправимо изменением уже существующих полей, без добавления или удаления персонажей, событий и улик. Не предлагай новую сюжетную линию. Максимум пять коротких, адресных замечаний с указанием поля или события, которое нужно исправить.`
+
+	messages := []chatMessage{
+		{Role: "system", Content: systemPrompt + languageInstruction(locale)},
+		{Role: "user", Content: "СЦЕНАРИЙ ДЛЯ ПРОВЕРКИ:\n" + string(scenarioJSON)},
+	}
+	content, err := c.chat(ctx, "scenario.review", messages, true)
+	if err != nil {
+		return llmScenarioReview{}, fmt.Errorf("review scenario: %w", err)
+	}
+
+	var review llmScenarioReview
+	if err := json.Unmarshal([]byte(content), &review); err != nil {
+		slog.WarnContext(ctx, "scenario review parse failed; retrying", "error", err, "response_preview", truncateForError(content))
+		retryContent, retryErr := c.chat(ctx, "scenario.review_retry", messages, true)
+		if retryErr != nil {
+			return llmScenarioReview{}, fmt.Errorf("parse scenario review (retry failed): %w", err)
+		}
+		if retryParseErr := json.Unmarshal([]byte(retryContent), &review); retryParseErr != nil {
+			return llmScenarioReview{}, fmt.Errorf("parse scenario review after retry: %w; response: %s", retryParseErr, truncateForError(retryContent))
+		}
+	}
+	return review, nil
+}
+
+func (c *OpenRouterClient) repairScenario(ctx context.Context, locale domain.Locale, scenario llmScenarioResponse, issues []string) (llmScenarioResponse, error) {
+	scenarioJSON, err := json.Marshal(scenario)
+	if err != nil {
+		return llmScenarioResponse{}, fmt.Errorf("marshal scenario for repair: %w", err)
+	}
+	issuesJSON, err := json.Marshal(issues)
+	if err != nil {
+		return llmScenarioResponse{}, fmt.Errorf("marshal scenario review issues: %w", err)
+	}
+
+	systemPrompt := `Ты точечно исправляешь JSON детективного сценария по списку подтверждённых замечаний. Верни ТОЛЬКО полный исправленный JSON точно той же схемы, что и исходный JSON.
+
+Исходный JSON — единственный источник истины. Исправь только перечисленные проблемы, сохрани все остальные значения, персонажей, id, порядок и количество событий, а также порядок, количество и названия улик без изменений. Не добавляй и не удаляй персонажей, улики, события или новые сюжетные факты. Не изменяй opinions, secrets и memories: они должны остаться пустыми массивами. Перед ответом проверь корректность JSON.`
+	messages := []chatMessage{
+		{Role: "system", Content: systemPrompt + languageInstruction(locale)},
+		{Role: "user", Content: "ИСХОДНЫЙ JSON:\n" + string(scenarioJSON) + "\n\nЗАМЕЧАНИЯ ДЛЯ ИСПРАВЛЕНИЯ:\n" + string(issuesJSON)},
+	}
+	content, err := c.chat(ctx, "scenario.repair", messages, true)
+	if err != nil {
+		return llmScenarioResponse{}, fmt.Errorf("repair scenario: %w", err)
+	}
+
+	var repaired llmScenarioResponse
+	if err := json.Unmarshal([]byte(content), &repaired); err != nil {
+		slog.WarnContext(ctx, "repaired scenario parse failed; retrying", "error", err, "response_preview", truncateForError(content))
+		retryContent, retryErr := c.chat(ctx, "scenario.repair_retry", messages, true)
+		if retryErr != nil {
+			return llmScenarioResponse{}, fmt.Errorf("parse repaired scenario (retry failed): %w", err)
+		}
+		if retryParseErr := json.Unmarshal([]byte(retryContent), &repaired); retryParseErr != nil {
+			return llmScenarioResponse{}, fmt.Errorf("parse repaired scenario after retry: %w; response: %s", retryParseErr, truncateForError(retryContent))
+		}
+	}
+	return repaired, nil
+}
+
+func validateScenario(scenario llmScenarioResponse) error {
+	if len(scenario.Characters) != 5 {
+		return fmt.Errorf("expected 5 characters, got %d", len(scenario.Characters))
+	}
+	if len(scenario.Evidence) != 5 {
+		return fmt.Errorf("expected 5 evidence items, got %d", len(scenario.Evidence))
+	}
+	if len(scenario.Timeline) < 14 || len(scenario.Timeline) > 20 {
+		return fmt.Errorf("expected 14-20 timeline entries, got %d", len(scenario.Timeline))
+	}
+
+	characterIDs := make(map[int]struct{}, len(scenario.Characters))
+	characterNames := make(map[string]struct{}, len(scenario.Characters))
+	for _, character := range scenario.Characters {
+		if character.ID < 1 || character.ID > 5 {
+			return fmt.Errorf("character id %d is outside 1-5", character.ID)
+		}
+		if _, exists := characterIDs[character.ID]; exists {
+			return fmt.Errorf("duplicate character id %d", character.ID)
+		}
+		characterIDs[character.ID] = struct{}{}
+
+		name := strings.ToLower(strings.TrimSpace(character.Name))
+		if name == "" {
+			return fmt.Errorf("character %d has empty name", character.ID)
+		}
+		if _, exists := characterNames[name]; exists {
+			return fmt.Errorf("duplicate character name %q", character.Name)
+		}
+		characterNames[name] = struct{}{}
+	}
+	if _, exists := characterIDs[scenario.Crime.PerpetratorID]; !exists {
+		return fmt.Errorf("perpetrator id %d does not reference a character", scenario.Crime.PerpetratorID)
+	}
+	if _, exists := characterNames[strings.ToLower(strings.TrimSpace(scenario.Crime.Victim))]; exists {
+		return fmt.Errorf("victim %q is also present in characters", scenario.Crime.Victim)
+	}
+
+	previousMinutes := -1
+	for i, entry := range scenario.Timeline {
+		minutes, err := parseClock(entry.Time)
+		if err != nil {
+			return fmt.Errorf("timeline entry %d: %w", i+1, err)
+		}
+		if minutes < previousMinutes {
+			return fmt.Errorf("timeline entry %d at %s is out of order", i+1, entry.Time)
+		}
+		previousMinutes = minutes
+		if strings.TrimSpace(entry.Event) == "" {
+			return fmt.Errorf("timeline entry %d has empty event", i+1)
+		}
+		if entry.CharacterID != nil {
+			if _, exists := characterIDs[*entry.CharacterID]; !exists {
+				return fmt.Errorf("timeline entry %d references unknown character id %d", i+1, *entry.CharacterID)
+			}
+		}
+	}
+
+	evidenceNames := make(map[string]struct{}, len(scenario.Evidence))
+	for i, evidence := range scenario.Evidence {
+		name := strings.ToLower(strings.TrimSpace(evidence.Name))
+		if name == "" {
+			return fmt.Errorf("evidence %d has empty name", i+1)
+		}
+		if _, exists := evidenceNames[name]; exists {
+			return fmt.Errorf("duplicate evidence name %q", evidence.Name)
+		}
+		evidenceNames[name] = struct{}{}
+		if strings.TrimSpace(evidence.Description) == "" || strings.TrimSpace(evidence.DetailedDescription) == "" {
+			return fmt.Errorf("evidence %q has an empty description", evidence.Name)
+		}
+	}
+	return nil
+}
+
+func parseClock(value string) (int, error) {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid time %q", value)
+	}
+	hour, err := strconv.Atoi(parts[0])
+	if err != nil || hour < 0 || hour > 23 {
+		return 0, fmt.Errorf("invalid time %q", value)
+	}
+	minute, err := strconv.Atoi(parts[1])
+	if err != nil || minute < 0 || minute > 59 {
+		return 0, fmt.Errorf("invalid time %q", value)
+	}
+	return hour*60 + minute, nil
 }
 
 func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, locale domain.Locale, scenario llmScenarioResponse) (map[int]llmPrivateCharacter, error) {
@@ -455,19 +647,20 @@ func (c *OpenRouterClient) generatePrivateCharacterData(ctx context.Context, loc
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: "Сгенерируй приватные данные персонажей для этого сценария:\n" + string(contextJSON)},
 	}
-	content, err := c.chat(ctx, messages, true)
+	content, err := c.chat(ctx, "scenario.private_characters", messages, true)
 	if err != nil {
 		return nil, err
 	}
 
 	var response llmPrivateResponse
 	if err := json.Unmarshal([]byte(content), &response); err != nil {
-		retryContent, retryErr := c.chat(ctx, messages, true)
+		slog.WarnContext(ctx, "private character data parse failed; retrying", "error", err, "response_preview", truncateForError(content))
+		retryContent, retryErr := c.chat(ctx, "scenario.private_characters_retry", messages, true)
 		if retryErr != nil {
-			return nil, fmt.Errorf("parse private character data (retry failed): %w\n%s", err, content)
+			return nil, fmt.Errorf("parse private character data (retry failed): %w; response: %s", err, truncateForError(content))
 		}
 		if retryParseErr := json.Unmarshal([]byte(retryContent), &response); retryParseErr != nil {
-			return nil, fmt.Errorf("parse private character data: %w\n%s", err, content)
+			return nil, fmt.Errorf("parse private character data after retry: %w; response: %s", retryParseErr, truncateForError(retryContent))
 		}
 	}
 
@@ -568,7 +761,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.
 		charList.String(), evList.String(), timelineList.String(), caseNumber, crime.TimeOfCrime,
 	)
 
-	content, err := c.chat(ctx, []chatMessage{
+	content, err := c.chat(ctx, "scenario.case_brief", []chatMessage{
 		{Role: "system", Content: "Ты — помощник детектива. Генерируешь официальные документы." + languageInstruction(locale)},
 		{Role: "user", Content: briefPrompt},
 	}, true)
@@ -584,6 +777,7 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.
 		CaseBrief string `json:"case_brief"`
 	}
 	if err := json.Unmarshal([]byte(content), &resp); err != nil {
+		slog.WarnContext(ctx, "case brief parse failed", "error", err, "response_preview", truncateForError(content))
 		return fmt.Sprintf("Дело №%d", caseNumber), content
 	}
 
@@ -639,7 +833,7 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, locale do
 
 	systemPrompt += languageInstruction(locale)
 
-	content, err := c.chat(ctx, []chatMessage{
+	content, err := c.chat(ctx, "interrogation.response", []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: fmt.Sprintf(`Ответь на реплику следователя. Верни ТОЛЬКО JSON:
 
@@ -667,7 +861,7 @@ func (c *OpenRouterClient) RespondInInterrogation(ctx context.Context, locale do
 		Statements    []string `json:"statements"`
 	}
 	if err := json.Unmarshal([]byte(content), &resp); err != nil {
-		return nil, fmt.Errorf("parse response: %w\n%s", err, content)
+		return nil, fmt.Errorf("parse interrogation response: %w; response: %s", err, truncateForError(content))
 	}
 
 	return &ports.LlmInterrogationResponse{
@@ -706,7 +900,7 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 
 	systemPrompt += languageInstruction(locale)
 
-	content, err := c.chat(ctx, []chatMessage{
+	content, err := c.chat(ctx, "report.evaluation", []chatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: fmt.Sprintf(`Отчёт игрока:
 Кто: %s
@@ -725,7 +919,7 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 		MissedFacts       []string          `json:"missed_facts"`
 	}
 	if err := json.Unmarshal([]byte(content), &resp); err != nil {
-		return nil, fmt.Errorf("parse feedback: %w\n%s", err, content)
+		return nil, fmt.Errorf("parse feedback: %w; response: %s", err, truncateForError(content))
 	}
 
 	return &ports.LlmFeedbackResponse{
@@ -763,8 +957,8 @@ func timelineForSelection(timeline domain.Timeline) string {
 }
 
 func (c *OpenRouterClient) selectActionTimelineEntries(ctx context.Context, locale domain.Locale, actionName, requestContext string, timeline domain.Timeline) ([]domain.TimelineEntry, error) {
-	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Выбирай только объективные записи таймлайна, прямо относящиеся к запросу. Не добавляй факты и не меняй тексты. Верни ТОЛЬКО JSON: {\"timeline_entry_ids\":[\"1\"]}. Укажи от 0 до 5 существующих ключей." + languageInstruction(locale)},
+	content, err := c.chat(ctx, "action.timeline_selection", []chatMessage{
+		{Role: "system", Content: "Выбирай только объективные записи таймлайна, относящиеся к запросу. Для предмета включи всю релевантную цепочку: создание или появление, контакты людей, использование, перемещения и финальное местоположение. Для алиби включи события проверяемого человека и события, способные независимо подтвердить или опровергнуть его слова. Не добавляй факты и не меняй тексты. Верни ТОЛЬКО JSON: {\"timeline_entry_ids\":[\"1\"]}. Укажи от 0 до 8 существующих ключей. Если оснований нет, верни пустой массив." + languageInstruction(locale)},
 		{Role: "user", Content: fmt.Sprintf("Действие: %s. Контекст запроса: %s.\nТаймлайн: %s", actionName, requestContext, timelineForSelection(timeline))},
 	}, true)
 	if err != nil {
@@ -782,13 +976,13 @@ func (c *OpenRouterClient) selectActionTimelineEntries(ctx context.Context, loca
 		if _, ok := seen[id]; ok {
 			continue
 		}
-		var index int
-		if _, err := fmt.Sscanf(id, "%d", &index); err != nil || index < 1 || index > len(timeline.Entries) {
+		index, err := strconv.Atoi(id)
+		if err != nil || index < 1 || index > len(timeline.Entries) {
 			continue
 		}
 		seen[id] = struct{}{}
 		entries = append(entries, timeline.Entries[index-1])
-		if len(entries) == 5 {
+		if len(entries) == 8 {
 			break
 		}
 	}
@@ -827,9 +1021,20 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, 
 		label = actionName
 	}
 
-	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON. Не упоминай внутренние идентификаторы, UUID или технические данные. Используй только переданные записи: не придумывай новых следов, совпадений ДНК, отпечатков, звонков, транзакций или участников. Если данных недостаточно, прямо сообщи об этом." + languageInstruction(locale)},
-		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s.\nКонтекст запроса: %s\nРелевантные объективные записи:\n%s\nВерни результат в 2-3 предложениях.", label, requestContext, relevantTimeline)},
+	content, err := c.chat(ctx, "action.report", []chatMessage{
+		{Role: "system", Content: `Ты составляешь итоговый отчёт уже выполненной экспертизы или проверки для детектива. Входные объективные события — скрытая внутренняя основа результата, недоступная детективу.
+
+Правила ответа:
+- Пиши только итог исследования в 2-3 предложениях, как законченный официальный результат.
+- Никогда не упоминай таймлайн, переданные события, входные данные, скрытый контекст или процесс выбора информации. Не используй формулировки «по переданным записям», «согласно таймлайну», «из представленных данных» и похожие. Запись камеры или история звонков могут упоминаться только как непосредственный объект соответствующей проверки.
+- Не пересказывай, кто и когда физически касался объекта, если запрос был лабораторным анализом. Сообщай непосредственно обнаруженные профили ДНК, отпечатки, вещества или иные результаты.
+- Не пиши о том, что анализ «может» или «мог бы» что-либо обнаружить: действие уже выполнено, поэтому дай фактический результат.
+- Не упоминай внутренние идентификаторы, UUID или технические поля.
+- Не придумывай следы, совпадения, звонки, транзакции или участников, для которых нет объективного основания во входных событиях.
+- Называй конкретного человека только при наличии явного объективного основания для соответствующего результата.
+- Не превращай отсутствие события во входных данных в доказательство отсутствия следов.
+- Если объективной основы недостаточно, сформулируй это как результат выполненной экспертизы: например, что пригодный для идентификации материал не выделен или установить обстоятельство не удалось. Не объясняй это отсутствием информации во входном контексте.` + languageInstruction(locale)},
+		{Role: "user", Content: fmt.Sprintf("Выполненное действие: %s.\nОбъект исследования: %s\nСкрытая объективная основа результата:\n%s\nСоставь только текст итогового отчёта.", label, requestContext, relevantTimeline)},
 	}, false)
 	if err != nil {
 		return "", err
