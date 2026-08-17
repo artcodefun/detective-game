@@ -3,6 +3,8 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/artcodefun/detective-game/backend/internal/application"
 	"github.com/artcodefun/detective-game/backend/internal/application/ports"
@@ -28,6 +30,50 @@ type Handlers struct {
 	Chat           application.ChatQueries
 
 	Translator ports.Translator
+
+	IOSMinVersion,
+	AndroidMinVersion,
+	IOSUpdateURL,
+	AndroidUpdateURL string
+}
+
+func (h *Handlers) CheckVersion(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Platform string `json:"platform"`
+		Version  string `json:"version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	min, url := h.IOSMinVersion, h.IOSUpdateURL
+	if body.Platform == "android" {
+		min, url = h.AndroidMinVersion, h.AndroidUpdateURL
+	} else if body.Platform != "ios" {
+		writeError(w, http.StatusBadRequest, "invalid platform")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"update_required": versionLess(body.Version, min), "update_url": url})
+}
+
+func versionLess(value, minimum string) bool {
+	parse := func(v string) [3]int {
+		var out [3]int
+		for i, p := range strings.Split(strings.Split(v, "+")[0], ".") {
+			if i == 3 {
+				break
+			}
+			out[i], _ = strconv.Atoi(p)
+		}
+		return out
+	}
+	a, b := parse(value), parse(minimum)
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
 }
 
 // POST /api/v1/auth/anonymous

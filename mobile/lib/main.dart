@@ -11,7 +11,7 @@ import 'services/api_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final api = ApiService(baseUrl: 'http://192.168.1.98:8080');
-  unawaited(api.init());
+  unawaited(api.initialize());
   runApp(DetectiveGameApp(api: api));
 }
 

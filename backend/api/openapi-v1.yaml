@@ -13,6 +13,28 @@ security:
     SessionID: []
 
 paths:
+  /api/v1/app/version:
+    post:
+      operationId: checkAppVersion
+      tags: [Application]
+      summary: Проверить необходимость обновления приложения
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppVersionCheckRequest"
+      responses:
+        "200":
+          description: Результат проверки версии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppVersionCheckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /api/v1/auth/anonymous:
     post:
       operationId: registerAnonymous
@@ -717,6 +739,28 @@ components:
         - manufacturer
         - model
         - os_version
+
+    AppVersionCheckRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum: [ios, android]
+        version:
+          type: string
+          example: "1.0.0"
+      required: [platform, version]
+
+    AppVersionCheckResponse:
+      type: object
+      properties:
+        update_required:
+          type: boolean
+        update_url:
+          type: string
+          format: uri
+          nullable: true
+      required: [update_required]
 
     AnonymousRegistrationResponse:
       type: object

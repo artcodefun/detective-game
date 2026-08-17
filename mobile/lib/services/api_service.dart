@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/action_report.dart';
 import '../models/chronology_entry.dart';
@@ -23,7 +24,15 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
-enum InitializationStatus { initial, initializing, ready, failed }
+enum InitializationStatus {
+  initial,
+  checkingVersion,
+  updateRequired,
+  registering,
+  ready,
+  versionCheckFailed,
+  registrationFailed,
+}
 
 class ApiService extends ChangeNotifier {
   static const _accessTokenKey = 'detective_access_token';
@@ -47,30 +56,43 @@ class ApiService extends ChangeNotifier {
   }) : _client = client ?? http.Client(),
        _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
-  Future<void> init() async {
+  String? updateUrl;
+  Future<void> initialize() async {
     if (_initializationStatus == InitializationStatus.ready ||
-        _initializationStatus == InitializationStatus.initializing) {
+        _initializationStatus == InitializationStatus.checkingVersion) {
       return;
     }
 
-    _initializationStatus = InitializationStatus.initializing;
+    _initializationStatus = InitializationStatus.checkingVersion;
     _initializationError = null;
     notifyListeners();
     try {
-      _accessToken = await _secureStorage.read(key: _accessTokenKey) ?? '';
-      if (_accessToken.isEmpty) {
-        await _registerAnonymousInstallation();
+      final package = await PackageInfo.fromPlatform();
+      final version = await _post(
+        '/api/v1/app/version',
+        body: {
+          'platform': Platform.isIOS ? 'ios' : 'android',
+          'version': package.version,
+        },
+      );
+      if (version['update_required'] == true) {
+        updateUrl = version['update_url'] as String?;
+        _initializationStatus = InitializationStatus.updateRequired;
+        return;
       }
+      _initializationStatus = InitializationStatus.registering;
+      notifyListeners();
+      await _ensureRegistered();
       _initializationStatus = InitializationStatus.ready;
     } catch (error) {
       _initializationError = error;
-      _initializationStatus = InitializationStatus.failed;
+      _initializationStatus = InitializationStatus.versionCheckFailed;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> _registerAnonymousInstallation() async {
+  Future<void> _ensureRegistered() async {
     final device = await _deviceInfo();
     final response = await _post('/api/v1/auth/anonymous', body: device);
     _accessToken = response['access_token'] as String;

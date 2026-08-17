@@ -12,6 +12,7 @@ func NewRouter(h *Handlers) http.Handler {
 	}
 
 	apiMux.HandleFunc("POST /api/v1/auth/anonymous", h.RegisterAnonymous)
+	apiMux.HandleFunc("POST /api/v1/app/version", h.CheckVersion)
 
 	registerUserRoute("POST /api/v1/sessions", h.CreateSession)
 	registerUserRoute("GET /api/v1/sessions/history", h.ListHistory)

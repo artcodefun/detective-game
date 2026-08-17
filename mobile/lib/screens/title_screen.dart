@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../blocs/session_cubit.dart';
 import '../models/scenario.dart';
@@ -23,7 +24,7 @@ class _TitleScreenState extends State<TitleScreen> {
   Session? _activeSession;
   bool _checking = true;
   bool _checkingRequest = false;
-  bool _errorSheetOpen = false;
+  bool _modalSheetOpen = false;
   late final ApiService _api;
 
   @override
@@ -46,12 +47,20 @@ class _TitleScreenState extends State<TitleScreen> {
         !_checkingRequest) {
       _checkActiveSession();
     }
-    if (_api.initializationStatus == InitializationStatus.failed &&
-        !_errorSheetOpen &&
+    if (_api.initializationStatus == InitializationStatus.versionCheckFailed &&
+        !_modalSheetOpen &&
         mounted) {
-      _errorSheetOpen = true;
+      _modalSheetOpen = true;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _showInitializationError(),
+      );
+    }
+    if (_api.initializationStatus == InitializationStatus.updateRequired &&
+        !_modalSheetOpen &&
+        mounted) {
+      _modalSheetOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showUpdateRequired(),
       );
     }
     if (mounted) setState(() {});
@@ -99,7 +108,7 @@ class _TitleScreenState extends State<TitleScreen> {
                   child: FilledButton.icon(
                     onPressed: () {
                       Navigator.pop(sheetContext);
-                      unawaited(_api.init());
+                      unawaited(_api.initialize());
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text('Повторить'),
@@ -109,7 +118,45 @@ class _TitleScreenState extends State<TitleScreen> {
             ),
           ),
     );
-    _errorSheetOpen = false;
+    _modalSheetOpen = false;
+  }
+
+  Future<void> _showUpdateRequired() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      builder:
+          (sheetContext) => Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.system_update, size: 40),
+                const SizedBox(height: 12),
+                Text(
+                  'Требуется обновление',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Обновите приложение для продолжения работы.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                if (_api.updateUrl case final url? when url.isNotEmpty)
+                  FilledButton(
+                    onPressed:
+                        () => launchUrl(
+                          Uri.parse(url),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                    child: const Text('Обновить'),
+                  ),
+              ],
+            ),
+          ),
+    );
   }
 
   Future<void> _checkActiveSession() async {

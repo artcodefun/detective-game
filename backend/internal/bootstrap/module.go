@@ -38,6 +38,11 @@ func NewModule(cfg Config) *Module {
 		Chat:           queries.Chat,
 
 		Translator: adapters.Translator,
+
+		IOSMinVersion:     cfg.IOSMinVersion,
+		AndroidMinVersion: cfg.AndroidMinVersion,
+		IOSUpdateURL:      cfg.IOSUpdateURL,
+		AndroidUpdateURL:  cfg.AndroidUpdateURL,
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
