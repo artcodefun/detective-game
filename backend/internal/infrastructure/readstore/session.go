@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type SessionReadRepo struct {
@@ -53,7 +54,11 @@ func (r *SessionReadRepo) GetGameResult(ctx context.Context, sessionID uuid.UUID
 }
 
 func (r *SessionReadRepo) ListHistory(ctx context.Context, userID uuid.UUID) ([]*readmodels.Session, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"user_id": userID})
+	cursor, err := r.coll.Find(
+		ctx,
+		bson.M{"user_id": userID},
+		options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}

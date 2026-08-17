@@ -157,8 +157,8 @@ class _EvidenceTabState extends State<_EvidenceTab> {
     final evidence = await api.listEvidence();
     final reports = await api.listReports();
     return [
-      ...evidence.map(_EvidenceItem.new),
       ...reports.map(_ReportItem.new),
+      ...evidence.map(_EvidenceItem.new),
     ];
   }
 

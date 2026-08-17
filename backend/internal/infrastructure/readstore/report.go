@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type ReportReadRepo struct {
@@ -29,7 +30,11 @@ func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*re
 }
 
 func (r *ReportReadRepo) ListReports(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ActionReport, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID})
+	cursor, err := r.coll.Find(
+		ctx,
+		bson.M{"session_id": sessionID},
+		options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list reports: %w", err)
 	}
