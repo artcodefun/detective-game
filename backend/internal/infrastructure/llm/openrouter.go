@@ -226,6 +226,12 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.L
   зачем и почему выбранная деталь должна вести к конкретной версии;
 - непрерывную, непротиворечивую последовательность. Не меняй владельца,
   местоположение, назначение или автора предмета в других частях JSON.
+- для каждой улики укажи последнего человека, который с ней взаимодействовал,
+  и точное местоположение к моменту прибытия полиции. Если предмет перемещён,
+  дальнейшие события обязаны продолжать это состояние; полиция может изъять
+  предмет только там, где он действительно находится, либо после явно
+  описанной передачи или возврата. Называй один и тот же предмет одинаково
+  во всех относящихся к нему событиях.
 
 Таймлайн — источник истины для evidence и memories. Ни одна релевантная улика,
 никакое действие из memories или secrets не может появиться, если его нет в
@@ -741,6 +747,54 @@ func formatTimeline(timeline domain.Timeline) string {
 	return b.String()
 }
 
+func timelineForSelection(timeline domain.Timeline) string {
+	var b strings.Builder
+	b.WriteString("{\n")
+	for i, entry := range timeline.Entries {
+		encoded, _ := json.Marshal(fmt.Sprintf("%s — %s", entry.Time, entry.Event))
+		fmt.Fprintf(&b, "  \"%d\": %s", i+1, encoded)
+		if i < len(timeline.Entries)-1 {
+			b.WriteByte(',')
+		}
+		b.WriteByte('\n')
+	}
+	b.WriteByte('}')
+	return b.String()
+}
+
+func (c *OpenRouterClient) selectActionTimelineEntries(ctx context.Context, locale domain.Locale, actionName, requestContext string, timeline domain.Timeline) ([]domain.TimelineEntry, error) {
+	content, err := c.chat(ctx, []chatMessage{
+		{Role: "system", Content: "Выбирай только объективные записи таймлайна, прямо относящиеся к запросу. Не добавляй факты и не меняй тексты. Верни ТОЛЬКО JSON: {\"timeline_entry_ids\":[\"1\"]}. Укажи от 0 до 5 существующих ключей." + languageInstruction(locale)},
+		{Role: "user", Content: fmt.Sprintf("Действие: %s. Контекст запроса: %s.\nТаймлайн: %s", actionName, requestContext, timelineForSelection(timeline))},
+	}, true)
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		TimelineEntryIDs []string `json:"timeline_entry_ids"`
+	}
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		return nil, fmt.Errorf("parse timeline selection: %w", err)
+	}
+	entries := make([]domain.TimelineEntry, 0, len(response.TimelineEntryIDs))
+	seen := make(map[string]struct{})
+	for _, id := range response.TimelineEntryIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		var index int
+		if _, err := fmt.Sscanf(id, "%d", &index); err != nil || index < 1 || index > len(timeline.Entries) {
+			continue
+		}
+		seen[id] = struct{}{}
+		entries = append(entries, timeline.Entries[index-1])
+		if len(entries) == 5 {
+			break
+		}
+	}
+	return entries, nil
+}
+
 func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, actionName string, crime domain.Crime, timeline domain.Timeline, evidence *domain.Evidence, character *domain.Character, alibiText *string) (string, error) {
 	var contextParts []string
 	if evidence != nil {
@@ -752,6 +806,12 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, 
 	if alibiText != nil {
 		contextParts = append(contextParts, fmt.Sprintf("текст алиби: %s", *alibiText))
 	}
+	requestContext := strings.Join(contextParts, ", ")
+	relevantEntries, err := c.selectActionTimelineEntries(ctx, locale, actionName, requestContext, timeline)
+	if err != nil {
+		return "", err
+	}
+	relevantTimeline := formatTimeline(domain.Timeline{Entries: relevantEntries})
 
 	actionLabels := map[string]string{
 		"dna_analysis":      "анализ ДНК",
@@ -768,8 +828,8 @@ func (c *OpenRouterClient) RunAction(ctx context.Context, locale domain.Locale, 
 	}
 
 	content, err := c.chat(ctx, []chatMessage{
-		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON. Не упоминай внутренние идентификаторы, UUID или технические данные; используй только понятные человеку названия улик и имена персонажей. Результат должен строго следовать объективному контексту дела: не придумывай новых событий, следов, звонков, транзакций или участников. Не раскрывай решение дела целиком, если оно не следует непосредственно из результата запрошенного действия." + languageInstruction(locale)},
-		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s.\n\nОбъективные обстоятельства преступления:\nЖертва: %s\nМотив: %s\nСпособ: %s\nВремя: %s\n\nОбъективный таймлайн:\n%s\nКонтекст запроса: %s\n\nВерни результат в 2-3 предложениях.", label, crime.Victim, crime.Motive, crime.Method, crime.TimeOfCrime, formatTimeline(timeline), strings.Join(contextParts, ", "))},
+		{Role: "system", Content: "Ты — криминалистическая лаборатория. Отвечай коротко, по делу. Не используй JSON. Не упоминай внутренние идентификаторы, UUID или технические данные. Используй только переданные записи: не придумывай новых следов, совпадений ДНК, отпечатков, звонков, транзакций или участников. Если данных недостаточно, прямо сообщи об этом." + languageInstruction(locale)},
+		{Role: "user", Content: fmt.Sprintf("Выполни запрос: %s.\nКонтекст запроса: %s\nРелевантные объективные записи:\n%s\nВерни результат в 2-3 предложениях.", label, requestContext, relevantTimeline)},
 	}, false)
 	if err != nil {
 		return "", err
