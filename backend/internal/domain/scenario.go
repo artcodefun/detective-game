@@ -14,12 +14,12 @@ const (
 )
 
 type Crime struct {
-	Type          CrimeType `bson:"crime_type"`
-	Victim        string    `bson:"victim"`
-	PerpetratorID uuid.UUID `bson:"perpetrator_id"`
-	Motive        string    `bson:"motive"`
-	Method        string    `bson:"method"`
-	TimeOfCrime   string    `bson:"time_of_crime"`
+	Type            CrimeType `bson:"crime_type"`
+	Victim          string    `bson:"victim"`
+	PerpetratorName string    `bson:"perpetrator_name"`
+	Motive          string    `bson:"motive"`
+	Method          string    `bson:"method"`
+	TimeOfCrime     string    `bson:"time_of_crime"`
 }
 
 type TimelineEntry struct {

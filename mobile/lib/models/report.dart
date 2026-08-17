@@ -24,7 +24,13 @@ class FinalReport {
   }
 
   Map<String, dynamic> toJson() {
-    return {'who': who, 'why': why, 'how': how, 'when': when, 'evidence': evidence};
+    return {
+      'who': who,
+      'why': why,
+      'how': how,
+      'when': when,
+      'evidence': evidence,
+    };
   }
 }
 
@@ -44,7 +50,13 @@ class ScoreBreakdown {
   });
 
   int get correctCount {
-    return [whoCorrect, whyCorrect, howCorrect, whenCorrect, evidenceCorrect].where((c) => c).length;
+    return [
+      whoCorrect,
+      whyCorrect,
+      howCorrect,
+      whenCorrect,
+      evidenceCorrect,
+    ].where((c) => c).length;
   }
 
   int get totalCount => 5;
@@ -72,27 +84,69 @@ class ScoreBreakdown {
   }
 }
 
+class ScoreBreakdownDetails {
+  final String who;
+  final String why;
+  final String how;
+  final String when;
+  final String evidence;
+
+  const ScoreBreakdownDetails({
+    required this.who,
+    required this.why,
+    required this.how,
+    required this.when,
+    required this.evidence,
+  });
+
+  factory ScoreBreakdownDetails.fromJson(Map<String, dynamic> json) {
+    return ScoreBreakdownDetails(
+      who: json['who'] as String,
+      why: json['why'] as String,
+      how: json['how'] as String,
+      when: json['when'] as String,
+      evidence: json['evidence'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'who': who,
+      'why': why,
+      'how': how,
+      'when': when,
+      'evidence': evidence,
+    };
+  }
+}
+
 class GameResult {
   final FinalReport playerReport;
   final ScoreBreakdown breakdown;
   final String narrativeFeedback;
-  final Map<String, String> breakdownDetails;
+  final ScoreBreakdownDetails breakdownDetails;
   final List<String> missedFacts;
 
   const GameResult({
     required this.playerReport,
     required this.breakdown,
     required this.narrativeFeedback,
-    this.breakdownDetails = const {},
+    required this.breakdownDetails,
     this.missedFacts = const [],
   });
 
   factory GameResult.fromJson(Map<String, dynamic> json) {
     return GameResult(
-      playerReport: FinalReport.fromJson(json['player_report'] as Map<String, dynamic>),
-      breakdown: ScoreBreakdown.fromJson(json['breakdown'] as Map<String, dynamic>),
+      playerReport: FinalReport.fromJson(
+        json['player_report'] as Map<String, dynamic>,
+      ),
+      breakdown: ScoreBreakdown.fromJson(
+        json['breakdown'] as Map<String, dynamic>,
+      ),
       narrativeFeedback: json['narrative_feedback'] as String,
-      breakdownDetails: Map<String, String>.from(json['breakdown_details'] ?? {}),
+      breakdownDetails: ScoreBreakdownDetails.fromJson(
+        json['breakdown_details'] as Map<String, dynamic>,
+      ),
       missedFacts: List<String>.from(json['missed_facts'] ?? []),
     );
   }

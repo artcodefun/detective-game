@@ -23,7 +23,8 @@ type LlmInterrogationResponse struct {
 
 type LlmFeedbackResponse struct {
 	NarrativeFeedback string
-	BreakdownDetails  map[string]string
+	Breakdown         domain.ScoreBreakdown
+	BreakdownDetails  domain.ScoreBreakdownDetails
 	MissedFacts       []string
 }
 

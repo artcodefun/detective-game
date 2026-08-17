@@ -2,15 +2,6 @@ package readmodels
 
 import "github.com/google/uuid"
 
-type Crime struct {
-	CrimeType     string    `json:"crime_type"`
-	Victim        string    `json:"victim"`
-	PerpetratorID uuid.UUID `json:"perpetrator_id"`
-	Motive        string    `json:"motive"`
-	Method        string    `json:"method"`
-	TimeOfCrime   string    `json:"time_of_crime"`
-}
-
 type TimelineEntry struct {
 	Time        string     `json:"time"`
 	Event       string     `json:"event"`

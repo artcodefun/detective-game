@@ -733,34 +733,6 @@ components:
         - created_at
         - content_locale
 
-    Crime:
-      type: object
-      properties:
-        crime_type:
-          type: string
-          description: Тип преступления (murder, theft, etc.)
-        victim:
-          type: string
-          description: Имя жертвы
-        perpetrator_id:
-          $ref: "#/components/schemas/UUID"
-        motive:
-          type: string
-          description: Мотив преступления
-        method:
-          type: string
-          description: Способ совершения
-        time_of_crime:
-          type: string
-          description: Время преступления (игровое)
-      required:
-        - crime_type
-        - victim
-        - perpetrator_id
-        - motive
-        - method
-        - time_of_crime
-
     Timeline:
       type: object
       properties:
@@ -1063,15 +1035,32 @@ components:
           type: string
           description: Нарративный фидбек от LLM (1-2 предложения)
         breakdown_details:
-          type: object
-          additionalProperties:
-            type: string
-          description: Пояснения по каждому пункту (ключ — who/why/how/when/evidence)
+          $ref: "#/components/schemas/ScoreBreakdownDetails"
       required:
         - player_report
         - breakdown
         - narrative_feedback
         - breakdown_details
+
+    ScoreBreakdownDetails:
+      type: object
+      properties:
+        who:
+          type: string
+        why:
+          type: string
+        how:
+          type: string
+        when:
+          type: string
+        evidence:
+          type: string
+      required:
+        - who
+        - why
+        - how
+        - when
+        - evidence
 
     FinalReport:
       type: object

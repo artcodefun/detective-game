@@ -19,17 +19,6 @@ func SessionFromDomain(session *domain.Session) *Session {
 	}
 }
 
-func CrimeFromDomain(crime domain.Crime) Crime {
-	return Crime{
-		CrimeType:     string(crime.Type),
-		Victim:        crime.Victim,
-		PerpetratorID: crime.PerpetratorID,
-		Motive:        crime.Motive,
-		Method:        crime.Method,
-		TimeOfCrime:   crime.TimeOfCrime,
-	}
-}
-
 func TimelineFromDomain(t domain.Timeline) Timeline {
 	entries := make([]TimelineEntry, len(t.Entries))
 	for i, e := range t.Entries {
@@ -62,7 +51,13 @@ func GameResultFromDomain(r *domain.GameResult) *GameResult {
 			EvidenceCorrect: r.Breakdown.EvidenceCorrect,
 		},
 		NarrativeFeedback: r.NarrativeFeedback,
-		BreakdownDetails:  r.BreakdownDetails,
+		BreakdownDetails: ScoreBreakdownDetails{
+			Who:      r.BreakdownDetails.Who,
+			Why:      r.BreakdownDetails.Why,
+			How:      r.BreakdownDetails.How,
+			When:     r.BreakdownDetails.When,
+			Evidence: r.BreakdownDetails.Evidence,
+		},
 	}
 }
 

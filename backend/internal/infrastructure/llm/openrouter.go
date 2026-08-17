@@ -345,10 +345,13 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.L
 		return nil, fmt.Errorf("generate private character data: %w", err)
 	}
 
-	perpetratorID := uuid.Nil
+	perpetratorName := ""
 	idByLLMID := make(map[int]uuid.UUID, len(llmResp.Characters))
 	domainChars := make([]domain.Character, len(llmResp.Characters))
 	for i, lc := range llmResp.Characters {
+		if lc.ID == llmResp.Crime.PerpetratorID {
+			perpetratorName = lc.Name
+		}
 		if details, ok := private[lc.ID]; ok {
 			lc.Opinions = details.Opinions
 			lc.Secrets = details.Secrets
@@ -380,10 +383,6 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.L
 			InterrogationsRemaining: domain.MaxInterrogations,
 		}
 	}
-	if id, ok := idByLLMID[llmResp.Crime.PerpetratorID]; ok {
-		perpetratorID = id
-	}
-
 	domainEvidence := make([]domain.Evidence, len(llmResp.Evidence))
 	for i, le := range llmResp.Evidence {
 		domainEvidence[i] = domain.Evidence{
@@ -417,12 +416,12 @@ func (c *OpenRouterClient) GenerateScenario(ctx context.Context, locale domain.L
 		CaseName:  caseName,
 		CaseBrief: caseBrief,
 		Crime: domain.Crime{
-			Type:          domain.CrimeType(llmResp.Crime.CrimeType),
-			Victim:        llmResp.Crime.Victim,
-			PerpetratorID: perpetratorID,
-			Motive:        llmResp.Crime.Motive,
-			Method:        llmResp.Crime.Method,
-			TimeOfCrime:   llmResp.Crime.TimeOfCrime,
+			Type:            domain.CrimeType(llmResp.Crime.CrimeType),
+			Victim:          llmResp.Crime.Victim,
+			PerpetratorName: perpetratorName,
+			Motive:          llmResp.Crime.Motive,
+			Method:          llmResp.Crime.Method,
+			TimeOfCrime:     llmResp.Crime.TimeOfCrime,
 		},
 		Timeline:   domain.Timeline{Entries: domainTimeline},
 		Characters: domainChars,
@@ -875,6 +874,7 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 	systemPrompt := fmt.Sprintf(`Ты оцениваешь финальный отчёт детектива. Вот что известно об убийстве на самом деле:
 
 Жертва: %s
+Преступник: %s
 Мотив преступника: %s
 Способ убийства: %s
 Время преступления: %s
@@ -884,15 +884,18 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 {
   "narrative_feedback": "развёрнутый текстовый отзыв (3-5 предложений на русском). Оцени общее качество расследования.",
   "breakdown_details": {
-    "who": "совпадает ли имя преступника в отчёте с фактами? дай краткую оценку",
-    "why": "насколько мотив в отчёте близок к реальному? дай краткую оценку",
-    "how": "правильно ли указан способ? дай краткую оценку",
-    "when": "правильно ли указано время? дай краткую оценку",
-    "evidence": "насколько убедительно описаны улики? дай краткую оценку"
+    "who": {"correct": true, "comment": "краткая оценка выбора преступника"},
+    "why": {"correct": true, "comment": "краткая оценка мотива"},
+    "how": {"correct": true, "comment": "краткая оценка способа"},
+    "when": {"correct": true, "comment": "краткая оценка времени"},
+    "evidence": {"correct": true, "comment": "краткая оценка улик"}
   },
   "missed_facts": ["какие важные детали игрок упустил"]
-}`,
+}
+
+Для каждого поля correct укажи, соответствует ли часть отчёта реальным фактам. Для who допустимы имя без фамилии, обычный порядок имени и фамилии и небольшая очевидная опечатка. Каждый comment обязан соответствовать своему correct.`,
 		groundTruth.Victim,
+		groundTruth.PerpetratorName,
 		groundTruth.Motive,
 		groundTruth.Method,
 		groundTruth.TimeOfCrime,
@@ -913,10 +916,21 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 		return nil, err
 	}
 
+	type feedbackDetail struct {
+		Correct bool   `json:"correct"`
+		Comment string `json:"comment"`
+	}
+	type feedbackBreakdownDetails struct {
+		Who      feedbackDetail `json:"who"`
+		Why      feedbackDetail `json:"why"`
+		How      feedbackDetail `json:"how"`
+		When     feedbackDetail `json:"when"`
+		Evidence feedbackDetail `json:"evidence"`
+	}
 	var resp struct {
-		NarrativeFeedback string            `json:"narrative_feedback"`
-		BreakdownDetails  map[string]string `json:"breakdown_details"`
-		MissedFacts       []string          `json:"missed_facts"`
+		NarrativeFeedback string                   `json:"narrative_feedback"`
+		BreakdownDetails  feedbackBreakdownDetails `json:"breakdown_details"`
+		MissedFacts       []string                 `json:"missed_facts"`
 	}
 	if err := json.Unmarshal([]byte(content), &resp); err != nil {
 		return nil, fmt.Errorf("parse feedback: %w; response: %s", err, truncateForError(content))
@@ -924,8 +938,21 @@ func (c *OpenRouterClient) EvaluateReport(ctx context.Context, locale domain.Loc
 
 	return &ports.LlmFeedbackResponse{
 		NarrativeFeedback: resp.NarrativeFeedback,
-		BreakdownDetails:  resp.BreakdownDetails,
-		MissedFacts:       resp.MissedFacts,
+		Breakdown: domain.ScoreBreakdown{
+			WhoCorrect:      resp.BreakdownDetails.Who.Correct,
+			WhyCorrect:      resp.BreakdownDetails.Why.Correct,
+			HowCorrect:      resp.BreakdownDetails.How.Correct,
+			WhenCorrect:     resp.BreakdownDetails.When.Correct,
+			EvidenceCorrect: resp.BreakdownDetails.Evidence.Correct,
+		},
+		BreakdownDetails: domain.ScoreBreakdownDetails{
+			Who:      resp.BreakdownDetails.Who.Comment,
+			Why:      resp.BreakdownDetails.Why.Comment,
+			How:      resp.BreakdownDetails.How.Comment,
+			When:     resp.BreakdownDetails.When.Comment,
+			Evidence: resp.BreakdownDetails.Evidence.Comment,
+		},
+		MissedFacts: resp.MissedFacts,
 	}, nil
 }
 

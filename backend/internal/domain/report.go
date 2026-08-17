@@ -16,6 +16,14 @@ type ScoreBreakdown struct {
 	EvidenceCorrect bool `bson:"evidence_correct"`
 }
 
+type ScoreBreakdownDetails struct {
+	Who      string `bson:"who"`
+	Why      string `bson:"why"`
+	How      string `bson:"how"`
+	When     string `bson:"when"`
+	Evidence string `bson:"evidence"`
+}
+
 func (s ScoreBreakdown) CorrectCount() int {
 	count := 0
 	if s.WhoCorrect {
@@ -41,9 +49,9 @@ func (s ScoreBreakdown) Accuracy() float64 {
 }
 
 type GameResult struct {
-	PlayerReport      FinalReport       `bson:"player_report"`
-	Breakdown         ScoreBreakdown    `bson:"breakdown"`
-	NarrativeFeedback string            `bson:"narrative_feedback"`
-	BreakdownDetails  map[string]string `bson:"breakdown_details"`
-	MissedFacts       []string          `bson:"missed_facts"`
+	PlayerReport      FinalReport           `bson:"player_report"`
+	Breakdown         ScoreBreakdown        `bson:"breakdown"`
+	NarrativeFeedback string                `bson:"narrative_feedback"`
+	BreakdownDetails  ScoreBreakdownDetails `bson:"breakdown_details"`
+	MissedFacts       []string              `bson:"missed_facts"`
 }
