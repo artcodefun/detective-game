@@ -9,7 +9,7 @@ import (
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) error
-	FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	FindUserByAccessTokenHash(ctx context.Context, accessTokenHash string) (*domain.User, error)
 }
 
 type SessionRepository interface {

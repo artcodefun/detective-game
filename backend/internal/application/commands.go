@@ -7,6 +7,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type UserCommands interface {
+	RegisterAnonymous(ctx context.Context, device domain.DeviceInfo) (accessToken string, err error)
+}
+
 type ScenarioCommands interface {
 	CreateSession(ctx context.Context, actor Actor) (uuid.UUID, error)
 }

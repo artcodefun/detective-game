@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:convert';
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/action_report.dart';
 import '../models/chronology_entry.dart';
@@ -21,32 +23,81 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
-class ApiService {
-  static const _userIdKey = 'detective_user_id';
+enum InitializationStatus { initial, initializing, ready, failed }
+
+class ApiService extends ChangeNotifier {
+  static const _accessTokenKey = 'detective_access_token';
 
   final String baseUrl;
   final http.Client _client;
-  String _userId = '';
+  final FlutterSecureStorage _secureStorage;
+  String _accessToken = '';
   String? _sessionId;
-
-  String get userId => _userId;
+  InitializationStatus _initializationStatus = InitializationStatus.initial;
+  Object? _initializationError;
 
   String? get sessionId => _sessionId;
+  InitializationStatus get initializationStatus => _initializationStatus;
+  Object? get initializationError => _initializationError;
 
-  ApiService({required this.baseUrl, http.Client? client})
-    : _client = client ?? http.Client();
-
-  static Future<String> loadOrCreateUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getString(_userIdKey);
-    if (existing != null) return existing;
-    final newId = const Uuid().v4();
-    await prefs.setString(_userIdKey, newId);
-    return newId;
-  }
+  ApiService({
+    required this.baseUrl,
+    http.Client? client,
+    FlutterSecureStorage? secureStorage,
+  }) : _client = client ?? http.Client(),
+       _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   Future<void> init() async {
-    _userId = await loadOrCreateUserId();
+    if (_initializationStatus == InitializationStatus.ready ||
+        _initializationStatus == InitializationStatus.initializing) {
+      return;
+    }
+
+    _initializationStatus = InitializationStatus.initializing;
+    _initializationError = null;
+    notifyListeners();
+    try {
+      _accessToken = await _secureStorage.read(key: _accessTokenKey) ?? '';
+      if (_accessToken.isEmpty) {
+        await _registerAnonymousInstallation();
+      }
+      _initializationStatus = InitializationStatus.ready;
+    } catch (error) {
+      _initializationError = error;
+      _initializationStatus = InitializationStatus.failed;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _registerAnonymousInstallation() async {
+    final device = await _deviceInfo();
+    final response = await _post('/api/v1/auth/anonymous', body: device);
+    _accessToken = response['access_token'] as String;
+    await _secureStorage.write(key: _accessTokenKey, value: _accessToken);
+  }
+
+  Future<Map<String, String>> _deviceInfo() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isIOS) {
+      final info = await deviceInfo.iosInfo;
+      return {
+        'platform': 'ios',
+        'manufacturer': 'Apple',
+        'model': info.utsname.machine,
+        'os_version': info.systemVersion,
+      };
+    }
+    if (Platform.isAndroid) {
+      final info = await deviceInfo.androidInfo;
+      return {
+        'platform': 'android',
+        'manufacturer': info.manufacturer,
+        'model': info.model,
+        'os_version': info.version.release,
+      };
+    }
+    throw UnsupportedError('unsupported platform');
   }
 
   void setSessionId(String id) => _sessionId = id;
@@ -56,7 +107,7 @@ class ApiService {
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept-Language': 'ru',
-    'X-User-ID': _userId,
+    if (_accessToken.isNotEmpty) 'Authorization': 'Bearer $_accessToken',
     if (_sessionId != null) 'X-Session-ID': _sessionId!,
   };
 
@@ -314,5 +365,9 @@ class ApiService {
     return GameResult.fromJson(res);
   }
 
-  void dispose() => _client.close();
+  @override
+  void dispose() {
+    _client.close();
+    super.dispose();
+  }
 }

@@ -13,6 +13,7 @@
   "error.forbidden": "Недостаточно прав",
   "error.conflict": "Операция недоступна в текущем состоянии",
   "error.invalid_input": "Некорректные данные",
+	"error.unauthorized": "Требуется авторизация",
   "error.active_interrogation_exists": "Сначала завершите текущий допрос",
   "error.no_interrogations_left": "Лимит допросов исчерпан",
   "error.interrogation_not_active": "Допрос уже завершён",

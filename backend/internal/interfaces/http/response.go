@@ -32,6 +32,8 @@ func writeAppError(w http.ResponseWriter, ctx context.Context, translator ports.
 
 func statusForAppError(kind application.ErrorKind) int {
 	switch kind {
+	case application.KindUnauthorized:
+		return http.StatusUnauthorized
 	case application.KindNotFound:
 		return http.StatusNotFound
 	case application.KindConflict:

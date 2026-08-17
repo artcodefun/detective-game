@@ -9,10 +9,34 @@ servers:
     description: Локальный сервер для разработки
 
 security:
-  - UserID: []
-  - SessionID: []
+  - BearerAuth: []
+    SessionID: []
 
 paths:
+  /api/v1/auth/anonymous:
+    post:
+      operationId: registerAnonymous
+      tags: [Authentication]
+      summary: Зарегистрировать анонимную установку приложения
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnonymousRegistrationRequest"
+      responses:
+        "201":
+          description: Анонимная установка зарегистрирована
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnonymousRegistrationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/sessions:
     post:
       operationId: createSession
@@ -20,7 +44,7 @@ paths:
       summary: Создать новую игровую сессию
       description: Запускает конвейер генерации сценария (Crime → Timeline → Evidence → Memories → Consistency Check). Сессия привязывается к пользователю.
       security:
-        - UserID: []
+        - BearerAuth: []
       responses:
         "201":
           description: Сессия создана, генерация завершена
@@ -38,7 +62,7 @@ paths:
       summary: Список завершённых сессий
       description: Возвращает все предыдущие сессии пользователя (с результатами и без).
       security:
-        - UserID: []
+        - BearerAuth: []
       responses:
         "200":
           description: Список сессий
@@ -56,9 +80,9 @@ paths:
       operationId: getSession
       tags: [Sessions]
       summary: Текущая активная сессия
-      description: Возвращает активную сессию пользователя (фаза не finished). Не требует X-Session-ID — ищет по X-User-ID.
+      description: Возвращает активную сессию пользователя (фаза не finished). Не требует X-Session-ID — ищет по Bearer token.
       security:
-        - UserID: []
+        - BearerAuth: []
       responses:
         "200":
           description: Активная сессия
@@ -76,7 +100,7 @@ paths:
       summary: Конкретная сессия по ID
       description: Возвращает любую сессию пользователя по ID (только если принадлежит пользователю).
       security:
-        - UserID: []
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -588,11 +612,11 @@ paths:
 
 components:
   securitySchemes:
-    UserID:
-      type: apiKey
-      in: header
-      name: X-User-ID
-      description: UUID пользователя (обязателен для всех запросов)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Токен анонимной установки приложения
     SessionID:
       type: apiKey
       in: header
@@ -675,6 +699,33 @@ components:
           description: Код или описание ошибки
       required:
         - error
+
+    AnonymousRegistrationRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum: [ios, android]
+        manufacturer:
+          type: string
+        model:
+          type: string
+        os_version:
+          type: string
+      required:
+        - platform
+        - manufacturer
+        - model
+        - os_version
+
+    AnonymousRegistrationResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Секретный Bearer token установки; хранится только на устройстве.
+      required:
+        - access_token
 
     CreateSessionResponse:
       type: object
@@ -1110,7 +1161,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
-            error: "missing or invalid X-User-ID header"
+            error: "Некорректный запрос"
 
     NotFound:
       description: Ресурс не найден

@@ -11,7 +11,6 @@ import (
 )
 
 type ScenarioCommands struct {
-	Users      ports.UserRepository
 	Sessions   ports.SessionRepository
 	LLM        ports.LlmService
 	Characters ports.CharacterRepository
@@ -19,21 +18,12 @@ type ScenarioCommands struct {
 	Chronology ports.ChronologyRepository
 }
 
-func NewScenarioCommands(users ports.UserRepository, sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, chronology ports.ChronologyRepository) *ScenarioCommands {
-	return &ScenarioCommands{Users: users, Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology}
+func NewScenarioCommands(sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, chronology ports.ChronologyRepository) *ScenarioCommands {
+	return &ScenarioCommands{Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology}
 }
 
 func (c *ScenarioCommands) CreateSession(ctx context.Context, actor application.Actor) (uuid.UUID, error) {
 	userID := actor.UserID
-	_, err := c.Users.FindUserByID(ctx, userID)
-	if err != nil {
-		user := domain.NewUser()
-		user.ID = userID
-		if err := c.Users.CreateUser(ctx, &user); err != nil {
-			return uuid.Nil, application.WrapError(err)
-		}
-	}
-
 	output, err := c.LLM.GenerateScenario(ctx, actor.Locale)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)

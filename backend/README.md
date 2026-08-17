@@ -60,7 +60,7 @@ internal/
 
 ## API
 
-Все эндпоинты требуют заголовок `X-User-ID` (UUID пользователя). Большинство эндпоинтов игровой логики требуют `X-Session-ID` (UUID сессии). Исключения (не требуют `X-Session-ID`): `POST /sessions`, `GET /sessions/history`, `GET /sessions/current`, `GET /sessions/{id}`.
+При первом запуске приложение вызывает `POST /api/v1/auth/anonymous` и получает Bearer token. Все защищённые эндпоинты требуют заголовок `Authorization: Bearer <token>`. Большинство эндпоинтов игровой логики также требуют `X-Session-ID` (UUID сессии). Исключения (не требуют `X-Session-ID`): `POST /sessions`, `GET /sessions/history`, `GET /sessions/current`, `GET /sessions/{id}`.
 
 | Метод | Путь | Описание |
 |-------|------|---------|

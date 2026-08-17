@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -66,6 +67,17 @@ func NewAdapters(cfg Config) *Adapters {
 		LLM:        llmService,
 		Translator: translator,
 	}
+}
+
+func (a *Adapters) Setup(ctx context.Context) error {
+	users, ok := a.Users.(*repo.UserRepo)
+	if !ok {
+		return fmt.Errorf("users adapter does not support setup")
+	}
+	if err := users.EnsureIndexes(ctx); err != nil {
+		return fmt.Errorf("create user indexes: %w", err)
+	}
+	return nil
 }
 
 func (a *Adapters) Shutdown(ctx context.Context) error {

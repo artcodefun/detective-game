@@ -23,17 +23,20 @@ func NewModule(cfg Config) *Module {
 	queries := NewQueries(adapters)
 
 	handlers := &httplayer.Handlers{
+		User:          commands.User,
 		Scenario:      commands.Scenario,
 		Interrogation: commands.Interrogation,
 		Evaluation:    commands.Evaluation,
 		Actions:       commands.Actions,
 		Notebook:      commands.Notebook,
 
-		Session:    queries.Session,
-		Character:  queries.Character,
-		Evidence:   queries.Evidence,
-		Chronology: queries.Chronology,
-		Chat:       queries.Chat,
+		Authentication: queries.User,
+		Session:        queries.Session,
+		Character:      queries.Character,
+		Evidence:       queries.Evidence,
+		Chronology:     queries.Chronology,
+		Chat:           queries.Chat,
+
 		Translator: adapters.Translator,
 	}
 
@@ -51,6 +54,10 @@ func NewModule(cfg Config) *Module {
 }
 
 func (m *Module) Run(ctx context.Context) error {
+	if err := m.Adapters.Setup(ctx); err != nil {
+		return fmt.Errorf("setup adapters: %w", err)
+	}
+
 	log.Printf("Starting server on :%s", m.Config.Port)
 
 	errCh := make(chan error, 1)

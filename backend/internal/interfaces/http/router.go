@@ -5,11 +5,13 @@ import "net/http"
 func NewRouter(h *Handlers) http.Handler {
 	apiMux := http.NewServeMux()
 	registerUserRoute := func(pattern string, handler http.HandlerFunc) {
-		apiMux.Handle(pattern, withUserContext(handler))
+		apiMux.Handle(pattern, withAuthentication(h.Authentication, h.Translator, handler))
 	}
 	registerSessionRoute := func(pattern string, handler http.HandlerFunc) {
-		apiMux.Handle(pattern, withUserContext(withSessionContext(h.Session, h.Translator, handler)))
+		apiMux.Handle(pattern, withAuthentication(h.Authentication, h.Translator, withSessionContext(h.Session, h.Translator, handler)))
 	}
+
+	apiMux.HandleFunc("POST /api/v1/auth/anonymous", h.RegisterAnonymous)
 
 	registerUserRoute("POST /api/v1/sessions", h.CreateSession)
 	registerUserRoute("GET /api/v1/sessions/history", h.ListHistory)

@@ -8,6 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type UserQueries interface {
+	Authenticate(ctx context.Context, accessToken string) (uuid.UUID, error)
+}
+
 type SessionQueries interface {
 	GetSessionLocale(ctx context.Context, userID, sessionID uuid.UUID) (domain.Locale, error)
 	GetSession(ctx context.Context, actor Actor) (*readmodels.Session, error)

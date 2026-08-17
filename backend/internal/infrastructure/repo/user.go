@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/artcodefun/detective-game/backend/internal/domain"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type UserRepo struct {
@@ -22,11 +22,19 @@ func (r *UserRepo) CreateUser(ctx context.Context, user *domain.User) error {
 	return err
 }
 
-func (r *UserRepo) FindUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+func (r *UserRepo) FindUserByAccessTokenHash(ctx context.Context, accessTokenHash string) (*domain.User, error) {
 	var user domain.User
-	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	err := r.coll.FindOne(ctx, bson.M{"access_token_hash": accessTokenHash}).Decode(&user)
 	if err != nil {
-		return nil, wrapFindError("find user", err)
+		return nil, wrapFindError("find user by access token hash", err)
 	}
 	return &user, nil
+}
+
+func (r *UserRepo) EnsureIndexes(ctx context.Context) error {
+	_, err := r.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "access_token_hash", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	return err
 }

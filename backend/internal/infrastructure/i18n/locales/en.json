@@ -13,6 +13,7 @@
   "error.forbidden": "Access denied",
   "error.conflict": "Operation is unavailable in the current state",
   "error.invalid_input": "Invalid input",
+	"error.unauthorized": "Authentication required",
   "error.active_interrogation_exists": "Complete the current interrogation first",
   "error.no_interrogations_left": "No interrogations remaining",
   "error.interrogation_not_active": "Interrogation is already completed",

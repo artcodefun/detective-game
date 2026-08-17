@@ -15,6 +15,7 @@ const (
 	KindForbidden
 	KindConflict
 	KindInvalidInput
+	KindUnauthorized
 )
 
 type AppError struct {
@@ -49,6 +50,7 @@ var (
 	ErrForbidden    = NewAppError(KindForbidden, domain.T("error.forbidden"))
 	ErrConflict     = NewAppError(KindConflict, domain.T("error.conflict"))
 	ErrInvalidInput = NewAppError(KindInvalidInput, domain.T("error.invalid_input"))
+	ErrUnauthorized = NewAppError(KindUnauthorized, domain.T("error.unauthorized"))
 )
 
 func IsNotFound(err error) bool {

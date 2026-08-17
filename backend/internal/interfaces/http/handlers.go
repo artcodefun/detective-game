@@ -13,19 +13,47 @@ import (
 )
 
 type Handlers struct {
+	User          application.UserCommands
 	Scenario      application.ScenarioCommands
 	Interrogation application.InterrogationCommands
 	Evaluation    application.EvaluationCommands
 	Actions       application.ActionCommands
 	Notebook      application.NotebookCommands
 
-	Session    application.SessionQueries
-	Character  application.CharacterQueries
-	Evidence   application.EvidenceQueries
-	Chronology application.ChronologyQueries
-	Chat       application.ChatQueries
+	Authentication application.UserQueries
+	Session        application.SessionQueries
+	Character      application.CharacterQueries
+	Evidence       application.EvidenceQueries
+	Chronology     application.ChronologyQueries
+	Chat           application.ChatQueries
 
 	Translator ports.Translator
+}
+
+// POST /api/v1/auth/anonymous
+func (h *Handlers) RegisterAnonymous(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Platform     domain.DevicePlatform `json:"platform"`
+		Manufacturer string                `json:"manufacturer"`
+		Model        string                `json:"model"`
+		OSVersion    string                `json:"os_version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	accessToken, err := h.User.RegisterAnonymous(r.Context(), domain.DeviceInfo{
+		Platform:     body.Platform,
+		Manufacturer: body.Manufacturer,
+		Model:        body.Model,
+		OSVersion:    body.OSVersion,
+	})
+	if err != nil {
+		writeAppError(w, r.Context(), h.Translator, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"access_token": accessToken})
 }
 
 // POST /api/v1/sessions
