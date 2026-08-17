@@ -681,18 +681,17 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.
 	}
 	var timelineList strings.Builder
 	for _, entry := range timeline {
-		timelineList.WriteString(fmt.Sprintf("- %s — %s\n", entry.Time, entry.Event))
+		timelineList.WriteString(fmt.Sprintf("- %s\n", entry.Event))
 	}
 
 	caseNumber := rand.Intn(9000) + 1000
+	timePeriod := caseBriefTimePeriod(crime.TimeOfCrime)
 
 	briefPrompt := fmt.Sprintf(`Сгенерируй название дела и официальный документ для детектива.
 
 Контекст:
 Жертва: %s
-Время преступления: %s
-Способ: %s
-Мотив: %s
+Предполагаемый период суток: %s
 
 Подозреваемые:
 %s
@@ -752,8 +751,8 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.
 *Дело передано:* [вымышленное имя старшего следователя]
 
 *Дата открытия:* [сегодняшняя дата]`,
-		crime.Victim, crime.TimeOfCrime, crime.Method, crime.Motive,
-		charList.String(), evList.String(), timelineList.String(), caseNumber, crime.TimeOfCrime,
+		crime.Victim, timePeriod,
+		charList.String(), evList.String(), timelineList.String(), caseNumber, timePeriod,
 	)
 
 	content, err := c.chat(ctx, "scenario.case_brief", []chatMessage{
@@ -777,6 +776,25 @@ func (c *OpenRouterClient) generateCaseBrief(ctx context.Context, locale domain.
 	}
 
 	return resp.CaseName, resp.CaseBrief
+}
+
+func caseBriefTimePeriod(timeOfCrime string) string {
+	minutes, err := parseClock(timeOfCrime)
+	if err != nil {
+		return "не установлено"
+	}
+
+	hour := minutes / 60
+	switch {
+	case hour >= 6 && hour < 12:
+		return "утро"
+	case hour >= 12 && hour < 18:
+		return "день"
+	case hour >= 18:
+		return "вечер"
+	default:
+		return "ночь"
+	}
 }
 
 func formatMemories(memories []domain.Memory) string {
