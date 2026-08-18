@@ -47,7 +47,9 @@ class _TitleScreenState extends State<TitleScreen> {
         !_checkingRequest) {
       _checkActiveSession();
     }
-    if (_api.initializationStatus == InitializationStatus.versionCheckFailed &&
+    if ((_api.initializationStatus == InitializationStatus.versionCheckFailed ||
+            _api.initializationStatus ==
+                InitializationStatus.registrationFailed) &&
         !_modalSheetOpen &&
         mounted) {
       _modalSheetOpen = true;

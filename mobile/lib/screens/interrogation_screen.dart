@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -6,6 +8,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../blocs/session_cubit.dart';
 import '../models/game_state.dart';
 import '../services/api_service.dart';
+import '../services/audio_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/mood_indicator.dart';
 
@@ -13,7 +16,11 @@ class InterrogationScreen extends StatefulWidget {
   final String characterId;
   final String? interrogationId;
 
-  const InterrogationScreen({super.key, required this.characterId, this.interrogationId});
+  const InterrogationScreen({
+    super.key,
+    required this.characterId,
+    this.interrogationId,
+  });
 
   @override
   State<InterrogationScreen> createState() => _InterrogationScreenState();
@@ -24,8 +31,11 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   final _speech = stt.SpeechToText();
+  final _audio = AudioService();
   bool _isWaiting = false;
   bool _isListening = false;
+  bool _isStoppingSpeech = false;
+  Completer<void>? _speechFinalResult;
   bool _speechInitialized = false;
   String _speechBaseText = '';
   String _speechFinalized = '';
@@ -38,20 +48,30 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   @override
   void initState() {
     super.initState();
+    _audio.pauseMusic();
     _startInterrogation();
   }
 
   @override
   void dispose() {
-    _speech.stop();
+    unawaited(_resumeMusic());
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  Future<void> _resumeMusic() async {
+    if (_isListening) {
+      await _stopListening();
+    }
+    await _audio.resumeMusic();
+  }
+
   Future<void> _startInterrogation() async {
     try {
-      final interId = widget.interrogationId ?? (await _api.createInterrogation(widget.characterId)).id;
+      final interId =
+          widget.interrogationId ??
+          (await _api.createInterrogation(widget.characterId)).id;
       _interId = interId;
 
       if (widget.interrogationId != null) {
@@ -63,7 +83,9 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
       if (mounted) setState(() => _character = character);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
         Navigator.pop(context);
       }
     }
@@ -71,9 +93,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
 
   Future<void> _toggleListening() async {
     if (_isListening) {
-      _isListening = false;
-      await _speech.stop();
-      setState(() => _isListening = false);
+      await _stopListening();
       return;
     }
 
@@ -98,34 +118,52 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     _speechBaseText = _textController.text;
     _speechFinalized = '';
     _speechPartial = '';
+    await _audio.beforeSpeechRecognition();
     _isListening = true;
+    if (mounted) setState(() {});
 
-    await _speech.listen(
-      onResult: _onSpeechResult,
-      listenOptions: stt.SpeechListenOptions(
-        localeId: 'ru_RU',
-        listenMode: stt.ListenMode.dictation,
-        pauseFor: const Duration(seconds: 10),
-        listenFor: const Duration(seconds: 120),
-        autoPunctuation: true,
-      ),
-    );
-    if (mounted) setState(() => _isListening = true);
+    try {
+      await _speech.listen(
+        onResult: _onSpeechResult,
+        listenOptions: stt.SpeechListenOptions(
+          localeId: 'ru_RU',
+          listenMode: stt.ListenMode.dictation,
+          pauseFor: const Duration(seconds: 10),
+          listenFor: const Duration(seconds: 120),
+          autoPunctuation: true,
+        ),
+      );
+    } catch (_) {
+      await _finishListening();
+      _onSpeechError('Не удалось начать голосовой ввод');
+    }
   }
 
   void _onSpeechError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {
     if (!_isListening) return;
     final words = result.recognizedWords;
+    if (result.finalResult) {
+      final finalResult = _speechFinalResult;
+      if (finalResult != null && !finalResult.isCompleted) {
+        finalResult.complete();
+      }
+    }
     if (words.isEmpty) {
       if (_speechPartial.isNotEmpty) {
         final sep = _speechFinalized.isEmpty ? '' : ' ';
         final punctuation =
-            _speechPartial.endsWith('.') || _speechPartial.endsWith('?') || _speechPartial.endsWith('!') ? '' : '.';
+            _speechPartial.endsWith('.') ||
+                    _speechPartial.endsWith('?') ||
+                    _speechPartial.endsWith('!')
+                ? ''
+                : '.';
         _speechFinalized += sep + _speechPartial + punctuation;
         _speechPartial = '';
       }
@@ -144,21 +182,54 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     if (_speechPartial.isNotEmpty) parts.add(_speechPartial);
     final fullText = parts.join(' ');
     _textController.text = fullText;
-    _textController.selection = TextSelection.fromPosition(TextPosition(offset: fullText.length));
+    _textController.selection = TextSelection.fromPosition(
+      TextPosition(offset: fullText.length),
+    );
   }
 
   void _onSpeechStatus(String status) {
     if (!mounted) return;
     if (status == stt.SpeechToText.listeningStatus) return;
+    if (_isStoppingSpeech) return;
+    unawaited(_finishListening());
+  }
+
+  Future<void> _stopListening() async {
+    if (!_isListening) return;
+    _isStoppingSpeech = true;
+    final finalResult = Completer<void>();
+    _speechFinalResult = finalResult;
+    try {
+      await _speech.stop();
+      await Future.any([
+        finalResult.future,
+        Future<void>.delayed(const Duration(seconds: 2)),
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    } catch (_) {
+      // Sending a message should not depend on stopping speech recognition.
+    } finally {
+      try {
+        await _finishListening();
+      } finally {
+        _speechFinalResult = null;
+        _isStoppingSpeech = false;
+      }
+    }
+  }
+
+  Future<void> _finishListening() async {
+    final wasListening = _isListening;
     _isListening = false;
-    setState(() => _isListening = false);
+    if (mounted) setState(() {});
+    if (wasListening) {
+      await _audio.afterSpeechRecognition();
+    }
   }
 
   Future<void> _sendMessage() async {
     if (_isListening) {
-      _isListening = false;
-      await _speech.stop();
-      if (mounted) setState(() => _isListening = false);
+      await _stopListening();
     }
 
     final text = _textController.text.trim();
@@ -182,23 +253,34 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     _scrollToBottom();
 
     try {
-      final msg = await _api.addInterrogationMessage(interId: _interId!, message: text);
+      final msg = await _api.addInterrogationMessage(
+        interId: _interId!,
+        message: text,
+      );
       if (mounted) {
         setState(() {
           _messages.add(msg);
           if (_character != null && msg.attitudeDelta != 0) {
             _character = _character!.copyWith(
-              trust: (_character!.trust + msg.attitudeDelta).clamp(Character.minTrust, Character.maxTrust),
+              trust: (_character!.trust + msg.attitudeDelta).clamp(
+                Character.minTrust,
+                Character.maxTrust,
+              ),
             );
           }
           _isWaiting = false;
         });
+        if (_character != null) {
+          unawaited(_audio.playSuspectReply(_character!));
+        }
         _scrollToBottom();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isWaiting = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     }
   }
@@ -251,14 +333,24 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor: colorScheme.primaryContainer,
-              child: Text(char.name[0], style: TextStyle(fontSize: 14, color: colorScheme.onPrimaryContainer)),
+              child: Text(
+                char.name[0],
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             Text(char.name),
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.close), onPressed: _closeInterrogation, tooltip: 'Завершить допрос'),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _closeInterrogation,
+            tooltip: 'Завершить допрос',
+          ),
         ],
       ),
       body: Column(
@@ -273,7 +365,12 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     );
   }
 
-  Widget _buildCharacterHeader(ThemeData theme, ColorScheme colorScheme, Character char, TrustLevel mood) {
+  Widget _buildCharacterHeader(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Character char,
+    TrustLevel mood,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -286,7 +383,9 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
                 const SizedBox(height: 2),
                 Text(
                   char.profession,
-                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withAlpha(140),
+                  ),
                 ),
               ],
             ),
@@ -297,7 +396,10 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
           const SizedBox(width: 6),
           Text(
             _getMoodLabel(mood),
-            style: theme.textTheme.bodySmall?.copyWith(color: _getMoodColor(mood), fontWeight: FontWeight.w500),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: _getMoodColor(mood),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -312,7 +414,9 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
           child: Text(
             'Задайте первый вопрос, чтобы начать допрос',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(100)),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withAlpha(100),
+            ),
           ),
         ),
       );
@@ -329,14 +433,22 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
             child: Row(
               children: [
                 SizedBox(width: 36),
-                SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ],
             ),
           );
         }
 
         final msg = _messages[index];
-        return ChatBubble(text: msg.text, isPlayer: msg.fromUser, senderName: msg.fromUser ? 'Вы' : characterName);
+        return ChatBubble(
+          text: msg.text,
+          isPlayer: msg.fromUser,
+          senderName: msg.fromUser ? 'Вы' : characterName,
+        );
       },
     );
   }
@@ -349,7 +461,10 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
           children: [
             IconButton(
               onPressed: _isWaiting ? null : _toggleListening,
-              icon: _isListening ? const Icon(Icons.mic, color: Colors.red) : const Icon(Icons.mic_none),
+              icon:
+                  _isListening
+                      ? const Icon(Icons.mic, color: Colors.red)
+                      : const Icon(Icons.mic_none),
               tooltip: _isListening ? 'Остановить запись' : 'Голосовой ввод',
             ),
             const SizedBox(width: 4),
@@ -362,10 +477,18 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: _isListening ? 'Говорите...' : 'Задайте вопрос...',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                   filled: true,
-                  fillColor: _isListening ? Colors.red.withAlpha(15) : colorScheme.surfaceContainerHighest,
+                  fillColor:
+                      _isListening
+                          ? Colors.red.withAlpha(15)
+                          : colorScheme.surfaceContainerHighest,
                 ),
               ),
             ),

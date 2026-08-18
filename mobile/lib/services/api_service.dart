@@ -42,12 +42,14 @@ class ApiService extends ChangeNotifier {
   final FlutterSecureStorage _secureStorage;
   String _accessToken = '';
   String? _sessionId;
+  String? _updateUrl;
   InitializationStatus _initializationStatus = InitializationStatus.initial;
   Object? _initializationError;
 
   String? get sessionId => _sessionId;
   InitializationStatus get initializationStatus => _initializationStatus;
   Object? get initializationError => _initializationError;
+  String? get updateUrl => _updateUrl;
 
   ApiService({
     required this.baseUrl,
@@ -56,43 +58,67 @@ class ApiService extends ChangeNotifier {
   }) : _client = client ?? http.Client(),
        _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
-  String? updateUrl;
   Future<void> initialize() async {
     if (_initializationStatus == InitializationStatus.ready ||
-        _initializationStatus == InitializationStatus.checkingVersion) {
+        _initializationStatus == InitializationStatus.updateRequired ||
+        _initializationStatus == InitializationStatus.checkingVersion ||
+        _initializationStatus == InitializationStatus.registering) {
       return;
     }
 
     _initializationStatus = InitializationStatus.checkingVersion;
     _initializationError = null;
+    _updateUrl = null;
     notifyListeners();
+
     try {
-      final package = await PackageInfo.fromPlatform();
-      final version = await _post(
-        '/api/v1/app/version',
-        body: {
-          'platform': Platform.isIOS ? 'ios' : 'android',
-          'version': package.version,
-        },
-      );
-      if (version['update_required'] == true) {
-        updateUrl = version['update_url'] as String?;
+      if (await _checkVersion()) {
         _initializationStatus = InitializationStatus.updateRequired;
         return;
       }
-      _initializationStatus = InitializationStatus.registering;
-      notifyListeners();
-      await _ensureRegistered();
-      _initializationStatus = InitializationStatus.ready;
     } catch (error) {
       _initializationError = error;
       _initializationStatus = InitializationStatus.versionCheckFailed;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final storedToken = await _secureStorage.read(key: _accessTokenKey);
+      if (storedToken != null && storedToken.isNotEmpty) {
+        _accessToken = storedToken;
+        _initializationStatus = InitializationStatus.ready;
+        return;
+      }
+
+      _initializationStatus = InitializationStatus.registering;
+      notifyListeners();
+      await _registerAnonymous();
+      _initializationStatus = InitializationStatus.ready;
+    } catch (error) {
+      _initializationError = error;
+      _initializationStatus = InitializationStatus.registrationFailed;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> _ensureRegistered() async {
+  Future<bool> _checkVersion() async {
+    final package = await PackageInfo.fromPlatform();
+    final version = await _post(
+      '/api/v1/app/version',
+      body: {
+        'platform': Platform.isIOS ? 'ios' : 'android',
+        'version': package.version,
+      },
+    );
+    if (version['update_required'] != true) return false;
+
+    _updateUrl = version['update_url'] as String?;
+    return true;
+  }
+
+  Future<void> _registerAnonymous() async {
     final device = await _deviceInfo();
     final response = await _post('/api/v1/auth/anonymous', body: device);
     _accessToken = response['access_token'] as String;

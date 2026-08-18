@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -39,11 +41,17 @@ class DeskScreen extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.search, size: 18, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.search,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${session.actionPoints}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -65,7 +73,12 @@ class DeskScreen extends StatelessWidget {
                       label: 'Дело',
                       subtitle: 'факты и улики',
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CaseFileScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CaseFileScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -88,7 +101,10 @@ class DeskScreen extends StatelessWidget {
                 label: 'Блокнот',
                 subtitle: 'хронология и заметки',
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NotebookScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotebookScreen()),
+                  );
                 },
               ),
             ),
@@ -103,7 +119,12 @@ class DeskScreen extends StatelessWidget {
                       label: 'Действия',
                       subtitle: 'анализы и запросы',
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ActionsScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ActionsScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -114,7 +135,12 @@ class DeskScreen extends StatelessWidget {
                       label: 'Отчёт',
                       subtitle: 'финальная версия',
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ReportScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -131,7 +157,9 @@ class DeskScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => const _PhoneBookSheet(),
     );
   }
@@ -143,7 +171,12 @@ class _DeskItem extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _DeskItem({required this.icon, required this.label, required this.subtitle, required this.onTap});
+  const _DeskItem({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +196,19 @@ class _DeskItem extends StatelessWidget {
             children: [
               Icon(icon, size: 36, color: colorScheme.primary),
               const SizedBox(height: 8),
-              Text(label, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                label,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120))),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withAlpha(120),
+                ),
+              ),
             ],
           ),
         ),
@@ -184,6 +227,23 @@ class _PhoneBookSheet extends StatefulWidget {
 class _PhoneBookSheetState extends State<_PhoneBookSheet> {
   Future<List<Character>>? _charactersFuture;
 
+  Future<void> _openInterrogation({
+    required String characterId,
+    String? interrogationId,
+  }) async {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    await navigator.push(
+      MaterialPageRoute(
+        builder:
+            (_) => InterrogationScreen(
+              characterId: characterId,
+              interrogationId: interrogationId,
+            ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -194,13 +254,10 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
     final api = context.read<ApiService>();
     final active = await api.getActiveInterrogation();
     if (active != null && mounted) {
-      Navigator.pop(context);
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => InterrogationScreen(
-          characterId: active.characterId,
-          interrogationId: active.id,
-        ),
-      ));
+      await _openInterrogation(
+        characterId: active.characterId,
+        interrogationId: active.id,
+      );
       return;
     }
     final charactersFuture = api.listCharacters();
@@ -235,60 +292,84 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Телефонная книга', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Телефонная книга',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 'Вызовите подозреваемого на допрос',
-                style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withAlpha(120),
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: _charactersFuture == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : FutureBuilder<List<Character>>(
-                  future: _charactersFuture!,
-                  builder: (_, snapshot) {
-                    if (snapshot.connectionState != ConnectionState.done) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Ошибка загрузки', style: theme.textTheme.bodyMedium));
-                    }
-                    final chars = snapshot.data!;
-                    return ListView.separated(
-                      controller: scrollController,
-                      itemCount: chars.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, index) {
-                        final c = chars[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: colorScheme.primaryContainer,
-                            child: Text(
-                              c.name[0],
-                              style: TextStyle(color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(c.name),
-                          subtitle: Text('Допросов: ${c.interrogationsRemaining}/3'),
-                          trailing: IconButton(
-                            icon: Icon(Icons.call, color: colorScheme.primary),
-                            onPressed:
-                                c.canInterrogate
-                                    ? () {
-                                      Navigator.pop(context);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => InterrogationScreen(characterId: c.id)),
-                                      );
-                                    }
-                                    : null,
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                child:
+                    _charactersFuture == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : FutureBuilder<List<Character>>(
+                          future: _charactersFuture!,
+                          builder: (_, snapshot) {
+                            if (snapshot.connectionState !=
+                                ConnectionState.done) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return Center(
+                                child: Text(
+                                  'Ошибка загрузки',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              );
+                            }
+                            final chars = snapshot.data!;
+                            return ListView.separated(
+                              controller: scrollController,
+                              itemCount: chars.length,
+                              separatorBuilder:
+                                  (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, index) {
+                                final c = chars[index];
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor:
+                                        colorScheme.primaryContainer,
+                                    child: Text(
+                                      c.name[0],
+                                      style: TextStyle(
+                                        color: colorScheme.onPrimaryContainer,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(c.name),
+                                  subtitle: Text(
+                                    'Допросов: ${c.interrogationsRemaining}/3',
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(
+                                      Icons.call,
+                                      color: colorScheme.primary,
+                                    ),
+                                    onPressed:
+                                        c.canInterrogate
+                                            ? () => unawaited(
+                                              _openInterrogation(
+                                                characterId: c.id,
+                                              ),
+                                            )
+                                            : null,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
               ),
             ],
           ),

@@ -6,12 +6,16 @@ import 'package:provider/provider.dart';
 
 import 'blocs/session_cubit.dart';
 import 'screens/title_screen.dart';
+import 'services/audio_service.dart';
 import 'services/api_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final api = ApiService(baseUrl: 'http://192.168.1.98:8080');
+  final audio = AudioService();
+  await audio.initialize();
   unawaited(api.initialize());
+  unawaited(audio.resumeMusic());
   runApp(DetectiveGameApp(api: api));
 }
 

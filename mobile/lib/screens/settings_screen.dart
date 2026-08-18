@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/audio_service.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -8,8 +10,26 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  double _soundVolume = 0.7;
-  double _musicVolume = 0.5;
+  final _audio = AudioService();
+  late double _soundVolume;
+  late double _musicVolume;
+
+  @override
+  void initState() {
+    super.initState();
+    _soundVolume = _audio.soundVolume;
+    _musicVolume = _audio.musicVolume;
+  }
+
+  void _setSoundVolume(double volume) {
+    _audio.setSoundVolume(volume);
+    setState(() => _soundVolume = volume);
+  }
+
+  void _setMusicVolume(double volume) {
+    _audio.setMusicVolume(volume);
+    setState(() => _musicVolume = volume);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +47,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 const Icon(Icons.volume_up),
-                Expanded(child: Slider(value: _soundVolume, onChanged: (v) => setState(() => _soundVolume = v))),
+                Expanded(
+                  child: Slider(
+                    value: _soundVolume,
+                    onChanged: _setSoundVolume,
+                  ),
+                ),
                 Text('${(_soundVolume * 100).round()}%'),
               ],
             ),
@@ -37,7 +62,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 const Icon(Icons.music_note),
-                Expanded(child: Slider(value: _musicVolume, onChanged: (v) => setState(() => _musicVolume = v))),
+                Expanded(
+                  child: Slider(
+                    value: _musicVolume,
+                    onChanged: _setMusicVolume,
+                  ),
+                ),
                 Text('${(_musicVolume * 100).round()}%'),
               ],
             ),
