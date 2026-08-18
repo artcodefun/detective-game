@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/action_report.dart';
 import '../models/chronology_entry.dart';
@@ -35,6 +36,7 @@ enum InitializationStatus {
 }
 
 class ApiService extends ChangeNotifier {
+  static const _installationMarkerKey = 'detective_installation_initialized';
   static const _accessTokenKey = 'detective_access_token';
 
   final String baseUrl;
@@ -87,6 +89,7 @@ class ApiService extends ChangeNotifier {
     }
 
     try {
+      await _prepareInstallation();
       final storedToken = await _secureStorage.read(key: _accessTokenKey);
       if (storedToken != null && storedToken.isNotEmpty) {
         _accessToken = storedToken;
@@ -126,6 +129,14 @@ class ApiService extends ChangeNotifier {
     final response = await _post('/v1/auth/anonymous', body: device);
     _accessToken = response['access_token'] as String;
     await _secureStorage.write(key: _accessTokenKey, value: _accessToken);
+  }
+
+  Future<void> _prepareInstallation() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (preferences.getBool(_installationMarkerKey) == true) return;
+
+    await _secureStorage.delete(key: _accessTokenKey);
+    await preferences.setBool(_installationMarkerKey, true);
   }
 
   Future<Map<String, String>> _deviceInfo() async {
