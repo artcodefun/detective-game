@@ -28,13 +28,7 @@ class DeskScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(session.caseName.isNotEmpty ? session.caseName : 'Дело'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            context.read<SessionService>().clear();
-            Navigator.pop(context);
-          },
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/scenario.dart';
 import '../services/api_service.dart';
 import '../services/session_service.dart';
 import 'desk_screen.dart';
@@ -21,7 +20,6 @@ class TitleScreen extends StatefulWidget {
 }
 
 class _TitleScreenState extends State<TitleScreen> {
-  Session? _activeSession;
   bool _checking = true;
   bool _checkingRequest = false;
   bool _modalSheetOpen = false;
@@ -136,25 +134,34 @@ class _TitleScreenState extends State<TitleScreen> {
     _checkingRequest = true;
     try {
       final session = await _api.getCurrentSession();
-      if (mounted) setState(() => _activeSession = session);
+      if (!mounted) return;
+      context.read<SessionService>().resume(
+        SessionState(
+          sessionId: session.id,
+          caseName: session.caseName,
+          actionPoints: session.actionPoints,
+          phase: session.phase,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 404 && mounted) {
+        context.read<SessionService>().clear();
+      }
     } catch (_) {
-      // no active session
+      // Keep any already loaded session when the availability check fails.
     }
     _checkingRequest = false;
     if (mounted) setState(() => _checking = false);
   }
 
   void _continueCase() {
-    if (_activeSession == null) return;
-    final s = _activeSession!;
-    context.read<SessionService>().resume(
-      SessionState(sessionId: s.id, caseName: s.caseName, actionPoints: s.actionPoints, phase: s.phase),
-    );
+    if (context.read<SessionService>().state == null) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
+    final session = context.watch<SessionService>().state;
     final ready = _api.initializationStatus == InitializationStatus.ready;
     final loading = !ready || _checking;
     final theme = Theme.of(context);
@@ -176,13 +183,13 @@ class _TitleScreenState extends State<TitleScreen> {
               const SizedBox(height: 4),
               const _CaseNumberAnimation(),
               const SizedBox(height: 48),
-              if (_activeSession != null || loading)
+              if (session != null || loading)
                 _TitleButton(
                   label: loading ? 'Проверяем...' : 'Продолжить дело',
                   icon: loading ? Icons.hourglass_top : Icons.play_arrow,
                   onPressed: loading ? null : _continueCase,
                 ),
-              if (_activeSession != null || loading) const SizedBox(height: 12),
+              if (session != null || loading) const SizedBox(height: 12),
               _TitleButton(
                 label: 'Новое дело',
                 icon: Icons.folder_open,
