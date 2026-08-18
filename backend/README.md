@@ -96,32 +96,32 @@ api/                — OpenAPI-спецификация (openapi-v1.yaml)
 
 ## API
 
-При первом запуске приложение вызывает `POST /api/v1/auth/anonymous` и получает Bearer token. Все защищённые эндпоинты требуют заголовок `Authorization: Bearer <token>`. Большинство эндпоинтов игровой логики также требуют `X-Session-ID` (UUID сессии). Исключения (не требуют `X-Session-ID`): `POST /sessions`, `GET /sessions/history`, `GET /sessions/current`, `GET /sessions/{id}`.
+При первом запуске приложение вызывает `POST /v1/auth/anonymous` и получает Bearer token. Все защищённые эндпоинты требуют заголовок `Authorization: Bearer <token>`. Большинство эндпоинтов игровой логики также требуют `X-Session-ID` (UUID сессии). Исключения (не требуют `X-Session-ID`): `POST /sessions`, `GET /sessions/history`, `GET /sessions/current`, `GET /sessions/{id}`.
 
 | Метод | Путь | Описание |
 |-------|------|---------|
-| POST | `/api/v1/sessions` | Создать игровую сессию |
-| GET | `/api/v1/sessions/current` | Активная сессия пользователя (не требует `X-Session-ID`) |
-| GET | `/api/v1/sessions/{id}` | Конкретная сессия по ID (не требует `X-Session-ID`) |
-| GET | `/api/v1/sessions/history` | История завершённых сессий |
-| GET | `/api/v1/characters` | Список персонажей |
-| GET | `/api/v1/characters/{charId}` | Детали персонажа |
-| GET | `/api/v1/evidence` | Список улик |
-| GET | `/api/v1/evidence/{evId}` | Детали улики |
-| GET | `/api/v1/chronology` | Хронология событий |
-| PATCH | `/api/v1/chronology/{chronId}/notes/{noteId}` | Обновить заметки |
-| POST | `/api/v1/interrogations` | Начать допрос |
-| POST | `/api/v1/interrogations/{interId}/messages` | Отправить сообщение |
-| GET | `/api/v1/interrogations/{interId}/messages` | История допроса |
-| PATCH | `/api/v1/interrogations/{interId}/complete` | Завершить допрос |
-| POST | `/api/v1/actions/dna-analysis` | Анализ ДНК |
-| POST | `/api/v1/actions/fingerprints` | Отпечатки пальцев |
-| POST | `/api/v1/actions/alibi-check` | Проверка алиби |
-| POST | `/api/v1/actions/camera-review` | Записи с камер |
-| POST | `/api/v1/actions/call-history` | История звонков |
-| POST | `/api/v1/actions/transactions` | Банковские операции |
-| POST | `/api/v1/reports` | Отправить финальный отчёт |
-| GET | `/api/v1/reports/{reportId}` | Просмотр отчёта |
+| POST | `/v1/sessions` | Создать игровую сессию |
+| GET | `/v1/sessions/current` | Активная сессия пользователя (не требует `X-Session-ID`) |
+| GET | `/v1/sessions/{id}` | Конкретная сессия по ID (не требует `X-Session-ID`) |
+| GET | `/v1/sessions/history` | История завершённых сессий |
+| GET | `/v1/characters` | Список персонажей |
+| GET | `/v1/characters/{charId}` | Детали персонажа |
+| GET | `/v1/evidence` | Список улик |
+| GET | `/v1/evidence/{evId}` | Детали улики |
+| GET | `/v1/chronology` | Хронология событий |
+| PATCH | `/v1/chronology/{chronId}/notes/{noteId}` | Обновить заметки |
+| POST | `/v1/interrogations` | Начать допрос |
+| POST | `/v1/interrogations/{interId}/messages` | Отправить сообщение |
+| GET | `/v1/interrogations/{interId}/messages` | История допроса |
+| PATCH | `/v1/interrogations/{interId}/complete` | Завершить допрос |
+| POST | `/v1/actions/dna-analysis` | Анализ ДНК |
+| POST | `/v1/actions/fingerprints` | Отпечатки пальцев |
+| POST | `/v1/actions/alibi-check` | Проверка алиби |
+| POST | `/v1/actions/camera-review` | Записи с камер |
+| POST | `/v1/actions/call-history` | История звонков |
+| POST | `/v1/actions/transactions` | Банковские операции |
+| POST | `/v1/reports` | Отправить финальный отчёт |
+| GET | `/v1/reports/{reportId}` | Просмотр отчёта |
 
 Полная спецификация в формате OpenAPI 3.1: [`api/openapi-v1.yaml`](api/openapi-v1.yaml).
 

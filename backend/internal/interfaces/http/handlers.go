@@ -76,7 +76,7 @@ func versionLess(value, minimum string) bool {
 	return false
 }
 
-// POST /api/v1/auth/anonymous
+// POST /v1/auth/anonymous
 func (h *Handlers) RegisterAnonymous(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Platform     domain.DevicePlatform `json:"platform"`
@@ -102,7 +102,7 @@ func (h *Handlers) RegisterAnonymous(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"access_token": accessToken})
 }
 
-// POST /api/v1/sessions
+// POST /v1/sessions
 func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	sessionID, err := h.Scenario.CreateSession(r.Context(), actor)
@@ -113,7 +113,7 @@ func (h *Handlers) CreateSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"session_id": sessionID.String()})
 }
 
-// GET /api/v1/sessions/history
+// GET /v1/sessions/history
 func (h *Handlers) ListHistory(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	history, err := h.Session.ListHistory(r.Context(), actor)
@@ -127,7 +127,7 @@ func (h *Handlers) ListHistory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.SessionsFromReadModels(history))
 }
 
-// GET /api/v1/sessions/current
+// GET /v1/sessions/current
 func (h *Handlers) GetSession(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	session, err := h.Session.GetSession(r.Context(), actor)
@@ -138,7 +138,7 @@ func (h *Handlers) GetSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.SessionFromReadModel(session))
 }
 
-// GET /api/v1/sessions/{id}
+// GET /v1/sessions/{id}
 func (h *Handlers) GetSessionByID(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	sessionID, err := uuid.Parse(r.PathValue("id"))
@@ -154,7 +154,7 @@ func (h *Handlers) GetSessionByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.SessionFromReadModel(session))
 }
 
-// GET /api/v1/evidence
+// GET /v1/evidence
 func (h *Handlers) ListEvidence(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	ev, err := h.Evidence.ListEvidence(r.Context(), actor)
@@ -165,7 +165,7 @@ func (h *Handlers) ListEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.EvidenceListFromReadModels(ev))
 }
 
-// GET /api/v1/evidence/{evId}
+// GET /v1/evidence/{evId}
 func (h *Handlers) GetEvidence(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	evID, err := uuid.Parse(r.PathValue("evId"))
@@ -181,7 +181,7 @@ func (h *Handlers) GetEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.EvidenceFromReadModel(ev))
 }
 
-// GET /api/v1/characters
+// GET /v1/characters
 func (h *Handlers) ListCharacters(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	chars, err := h.Character.ListCharacters(r.Context(), actor)
@@ -192,7 +192,7 @@ func (h *Handlers) ListCharacters(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.CharactersFromReadModels(chars))
 }
 
-// GET /api/v1/characters/{charId}
+// GET /v1/characters/{charId}
 func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	charID, err := uuid.Parse(r.PathValue("charId"))
@@ -208,7 +208,7 @@ func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.CharacterFromReadModel(char))
 }
 
-// GET /api/v1/chronology
+// GET /v1/chronology
 func (h *Handlers) GetChronology(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	chron, err := h.Chronology.GetChronology(r.Context(), actor)
@@ -219,7 +219,7 @@ func (h *Handlers) GetChronology(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ChronologyEntriesFromReadModel(chron, h.Translator, actor.SessionContentLocale))
 }
 
-// PATCH /api/v1/chronology/{chronId}/notes/{noteId}
+// PATCH /v1/chronology/{chronId}/notes/{noteId}
 func (h *Handlers) UpdateNotebookEntry(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -251,7 +251,7 @@ func (h *Handlers) UpdateNotebookEntry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// GET /api/v1/interrogations/active
+// GET /v1/interrogations/active
 func (h *Handlers) GetActiveInterrogation(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	inter, err := h.Chat.GetActiveInterrogation(r.Context(), actor)
@@ -262,7 +262,7 @@ func (h *Handlers) GetActiveInterrogation(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, dtos.InterrogationFromReadModel(inter))
 }
 
-// POST /api/v1/interrogations
+// POST /v1/interrogations
 func (h *Handlers) CreateInterrogation(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -289,7 +289,7 @@ func (h *Handlers) CreateInterrogation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, dtos.InterrogationFromReadModel(inter))
 }
 
-// GET /api/v1/interrogations/{interId}
+// GET /v1/interrogations/{interId}
 func (h *Handlers) GetInterrogation(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -308,7 +308,7 @@ func (h *Handlers) GetInterrogation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.InterrogationFromReadModel(inter))
 }
 
-// POST /api/v1/interrogations/{interId}/messages
+// POST /v1/interrogations/{interId}/messages
 func (h *Handlers) AddInterrogationMessage(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -345,7 +345,7 @@ func (h *Handlers) AddInterrogationMessage(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, dtos.ChatMessageFromReadModel(msg))
 }
 
-// GET /api/v1/interrogations/{interId}/messages
+// GET /v1/interrogations/{interId}/messages
 func (h *Handlers) GetInterrogationMessages(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -367,7 +367,7 @@ func (h *Handlers) GetInterrogationMessages(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, dtos.ChatMessagesFromReadModels(messages))
 }
 
-// PATCH /api/v1/interrogations/{interId}/complete
+// PATCH /v1/interrogations/{interId}/complete
 func (h *Handlers) CompleteInterrogation(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 
@@ -385,7 +385,7 @@ func (h *Handlers) CompleteInterrogation(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// POST /api/v1/actions/dna-analysis
+// POST /v1/actions/dna-analysis
 func (h *Handlers) DNAAnalysis(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	var body struct {
@@ -408,7 +408,7 @@ func (h *Handlers) DNAAnalysis(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/actions/fingerprints
+// POST /v1/actions/fingerprints
 func (h *Handlers) FingerprintsCheck(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	var body struct {
@@ -431,7 +431,7 @@ func (h *Handlers) FingerprintsCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/actions/alibi-check
+// POST /v1/actions/alibi-check
 func (h *Handlers) AlibiCheck(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	var body struct {
@@ -455,7 +455,7 @@ func (h *Handlers) AlibiCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/actions/camera-review
+// POST /v1/actions/camera-review
 func (h *Handlers) CameraReview(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	reportID, err := h.Actions.CameraReview(r.Context(), actor)
@@ -471,7 +471,7 @@ func (h *Handlers) CameraReview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/actions/call-history
+// POST /v1/actions/call-history
 func (h *Handlers) CallHistory(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	var body struct {
@@ -494,7 +494,7 @@ func (h *Handlers) CallHistory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/actions/transactions
+// POST /v1/actions/transactions
 func (h *Handlers) TransactionCheck(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	var body struct {
@@ -517,7 +517,7 @@ func (h *Handlers) TransactionCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportFromReadModel(result, h.Translator, actor.SessionContentLocale))
 }
 
-// GET /api/v1/reports
+// GET /v1/reports
 func (h *Handlers) ListReports(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 	reports, err := h.Evidence.ListReports(r.Context(), actor)
@@ -528,7 +528,7 @@ func (h *Handlers) ListReports(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ActionReportsFromReadModels(reports, h.Translator, actor.SessionContentLocale))
 }
 
-// POST /api/v1/reports
+// POST /v1/reports
 func (h *Handlers) SubmitReport(w http.ResponseWriter, r *http.Request) {
 	actor := ActorFromContext(r.Context())
 

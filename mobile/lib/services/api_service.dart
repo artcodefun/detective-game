@@ -54,9 +54,12 @@ class ApiService extends ChangeNotifier {
 
   String? get updateUrl => _updateUrl;
 
-  ApiService({required this.baseUrl, http.Client? client, FlutterSecureStorage? secureStorage})
-    : _client = client ?? http.Client(),
-      _secureStorage = secureStorage ?? const FlutterSecureStorage();
+  ApiService({
+    required this.baseUrl,
+    http.Client? client,
+    FlutterSecureStorage? secureStorage,
+  }) : _client = client ?? http.Client(),
+       _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   Future<void> initialize() async {
     if (_initializationStatus == InitializationStatus.ready ||
@@ -106,8 +109,11 @@ class ApiService extends ChangeNotifier {
   Future<bool> _checkVersion() async {
     final package = await PackageInfo.fromPlatform();
     final version = await _post(
-      '/api/v1/app/version',
-      body: {'platform': Platform.isIOS ? 'ios' : 'android', 'version': package.version},
+      '/v1/app/version',
+      body: {
+        'platform': Platform.isIOS ? 'ios' : 'android',
+        'version': package.version,
+      },
     );
     if (version['update_required'] != true) return false;
 
@@ -117,7 +123,7 @@ class ApiService extends ChangeNotifier {
 
   Future<void> _registerAnonymous() async {
     final device = await _deviceInfo();
-    final response = await _post('/api/v1/auth/anonymous', body: device);
+    final response = await _post('/v1/auth/anonymous', body: device);
     _accessToken = response['access_token'] as String;
     await _secureStorage.write(key: _accessTokenKey, value: _accessToken);
   }
@@ -162,15 +168,29 @@ class ApiService extends ChangeNotifier {
     return _handleResponse(res);
   }
 
-  Future<Map<String, dynamic>> _post(String path, {Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> _post(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
     final uri = Uri.parse('$baseUrl$path');
-    final res = await _client.post(uri, headers: _headers, body: body != null ? jsonEncode(body) : null);
+    final res = await _client.post(
+      uri,
+      headers: _headers,
+      body: body != null ? jsonEncode(body) : null,
+    );
     return _handleResponse(res);
   }
 
-  Future<Map<String, dynamic>> _patch(String path, {Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> _patch(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
     final uri = Uri.parse('$baseUrl$path');
-    final res = await _client.patch(uri, headers: _headers, body: body != null ? jsonEncode(body) : null);
+    final res = await _client.patch(
+      uri,
+      headers: _headers,
+      body: body != null ? jsonEncode(body) : null,
+    );
     return _handleResponse(res);
   }
 
@@ -182,7 +202,10 @@ class ApiService extends ChangeNotifier {
       return jsonDecode(res.body) as List<dynamic>;
     }
     final error = jsonDecode(res.body) as Map<String, dynamic>;
-    throw ApiException(res.statusCode, error['error'] as String? ?? 'unknown_error');
+    throw ApiException(
+      res.statusCode,
+      error['error'] as String? ?? 'unknown_error',
+    );
   }
 
   Map<String, dynamic> _handleResponse(http.Response res) {
@@ -191,57 +214,68 @@ class ApiService extends ChangeNotifier {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
     final error = jsonDecode(res.body) as Map<String, dynamic>;
-    throw ApiException(res.statusCode, error['error'] as String? ?? 'unknown_error');
+    throw ApiException(
+      res.statusCode,
+      error['error'] as String? ?? 'unknown_error',
+    );
   }
 
   // ─── Sessions ────────────────────────────────────────────
 
   Future<String> createSession() async {
-    final res = await _post('/api/v1/sessions');
+    final res = await _post('/v1/sessions');
     final id = res['session_id'] as String;
     _sessionId = id;
     return id;
   }
 
   Future<Session> getCurrentSession() async {
-    final res = await _get('/api/v1/sessions/current');
+    final res = await _get('/v1/sessions/current');
     return Session.fromJson(res);
   }
 
   Future<List<Session>> listHistory() async {
-    final list = await _getList('/api/v1/sessions/history');
-    return list.map((e) => Session.fromJson(e as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/sessions/history');
+    return list
+        .map((e) => Session.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ─── Characters ─────────────────────────────────────────
 
   Future<List<Character>> listCharacters() async {
-    final list = await _getList('/api/v1/characters');
-    return list.map((e) => Character.fromJson(e as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/characters');
+    return list
+        .map((e) => Character.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Character> getCharacter(String charId) async {
-    final res = await _get('/api/v1/characters/$charId');
+    final res = await _get('/v1/characters/$charId');
     return Character.fromJson(res);
   }
 
   // ─── Evidence ────────────────────────────────────────────
 
   Future<List<Evidence>> listEvidence() async {
-    final list = await _getList('/api/v1/evidence');
-    return list.map((e) => Evidence.fromJson(e as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/evidence');
+    return list
+        .map((e) => Evidence.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Evidence> getEvidence(String evId) async {
-    final res = await _get('/api/v1/evidence/$evId');
+    final res = await _get('/v1/evidence/$evId');
     return Evidence.fromJson(res);
   }
 
   // ─── Chronology ──────────────────────────────────────────
 
   Future<List<ChronologyEntry>> getChronology() async {
-    final list = await _getList('/api/v1/chronology');
-    return list.map((e) => ChronologyEntry.fromJson(e as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/chronology');
+    return list
+        .map((e) => ChronologyEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> updateNotebookEntry({
@@ -250,19 +284,25 @@ class ApiService extends ChangeNotifier {
     required List<String> tags,
     String? note,
   }) async {
-    await _patch('/api/v1/chronology/$chronId/notes/$noteId', body: {'tags': tags, if (note != null) 'note': note});
+    await _patch(
+      '/v1/chronology/$chronId/notes/$noteId',
+      body: {'tags': tags, if (note != null) 'note': note},
+    );
   }
 
   // ─── Interrogations ──────────────────────────────────────
 
   Future<Interrogation> createInterrogation(String characterId) async {
-    final res = await _post('/api/v1/interrogations', body: {'character_id': characterId});
+    final res = await _post(
+      '/v1/interrogations',
+      body: {'character_id': characterId},
+    );
     return Interrogation.fromJson(res);
   }
 
   Future<Interrogation?> getActiveInterrogation() async {
     try {
-      final res = await _get('/api/v1/interrogations/active');
+      final res = await _get('/v1/interrogations/active');
       return Interrogation.fromJson(res);
     } on ApiException catch (e) {
       if (e.statusCode == 404) return null;
@@ -271,64 +311,89 @@ class ApiService extends ChangeNotifier {
   }
 
   Future<Interrogation> getInterrogation(String interId) async {
-    final res = await _get('/api/v1/interrogations/$interId');
+    final res = await _get('/v1/interrogations/$interId');
     return Interrogation.fromJson(res);
   }
 
-  Future<ChatMessage> addInterrogationMessage({required String interId, required String message}) async {
-    final res = await _post('/api/v1/interrogations/$interId/messages', body: {'message': message});
+  Future<ChatMessage> addInterrogationMessage({
+    required String interId,
+    required String message,
+  }) async {
+    final res = await _post(
+      '/v1/interrogations/$interId/messages',
+      body: {'message': message},
+    );
     return ChatMessage.fromJson(res);
   }
 
   Future<List<ChatMessage>> getInterrogationMessages(String interId) async {
-    final list = await _getList('/api/v1/interrogations/$interId/messages');
-    return list.map((e) => ChatMessage.fromJson(e as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/interrogations/$interId/messages');
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> completeInterrogation(String interId) async {
-    await _patch('/api/v1/interrogations/$interId/complete');
+    await _patch('/v1/interrogations/$interId/complete');
   }
 
   // ─── Actions ─────────────────────────────────────────────
 
   Future<ActionReport> dnaAnalysis(String evidenceId) async {
-    final res = await _post('/api/v1/actions/dna-analysis', body: {'evidence_id': evidenceId});
+    final res = await _post(
+      '/v1/actions/dna-analysis',
+      body: {'evidence_id': evidenceId},
+    );
     return ActionReport.fromJson(res);
   }
 
   Future<ActionReport> fingerprintsCheck(String evidenceId) async {
-    final res = await _post('/api/v1/actions/fingerprints', body: {'evidence_id': evidenceId});
+    final res = await _post(
+      '/v1/actions/fingerprints',
+      body: {'evidence_id': evidenceId},
+    );
     return ActionReport.fromJson(res);
   }
 
-  Future<ActionReport> alibiCheck({required String characterId, required String alibiText}) async {
+  Future<ActionReport> alibiCheck({
+    required String characterId,
+    required String alibiText,
+  }) async {
     final res = await _post(
-      '/api/v1/actions/alibi-check',
+      '/v1/actions/alibi-check',
       body: {'character_id': characterId, 'alibi_text': alibiText},
     );
     return ActionReport.fromJson(res);
   }
 
   Future<ActionReport> cameraReview() async {
-    final res = await _post('/api/v1/actions/camera-review');
+    final res = await _post('/v1/actions/camera-review');
     return ActionReport.fromJson(res);
   }
 
   Future<ActionReport> callHistory(String characterId) async {
-    final res = await _post('/api/v1/actions/call-history', body: {'character_id': characterId});
+    final res = await _post(
+      '/v1/actions/call-history',
+      body: {'character_id': characterId},
+    );
     return ActionReport.fromJson(res);
   }
 
   Future<ActionReport> transactionCheck(String characterId) async {
-    final res = await _post('/api/v1/actions/transactions', body: {'character_id': characterId});
+    final res = await _post(
+      '/v1/actions/transactions',
+      body: {'character_id': characterId},
+    );
     return ActionReport.fromJson(res);
   }
 
   // ─── Reports ─────────────────────────────────────────────
 
   Future<List<ActionReport>> listReports() async {
-    final list = await _getList('/api/v1/reports');
-    return list.map((item) => ActionReport.fromJson(item as Map<String, dynamic>)).toList();
+    final list = await _getList('/v1/reports');
+    return list
+        .map((item) => ActionReport.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<GameResult> submitReport({
@@ -339,8 +404,14 @@ class ApiService extends ChangeNotifier {
     required String evidence,
   }) async {
     final res = await _post(
-      '/api/v1/reports',
-      body: {'who': who, 'why': why, 'how': how, 'when': when, 'evidence': evidence},
+      '/v1/reports',
+      body: {
+        'who': who,
+        'why': why,
+        'how': how,
+        'when': when,
+        'evidence': evidence,
+      },
     );
     return GameResult.fromJson(res);
   }
