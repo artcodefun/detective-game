@@ -15,6 +15,33 @@ set +a
 go run ./cmd/server
 ```
 
+## Docker
+
+Compose запускает API и MongoDB, а данные базы сохраняет в именованном томе
+`mongo_data`. Из каталога `backend/`:
+
+```bash
+cp .env.example .env
+# Заполни OPENROUTER_API_KEY и задай надёжный MONGO_ROOT_PASSWORD.
+docker compose up --build -d
+```
+
+Если `.env` уже существовал, добавь в него `MONGO_ROOT_USERNAME` и
+`MONGO_ROOT_PASSWORD` из `.env.example`; Compose намеренно не запускается без
+этих переменных.
+
+API будет доступен по `http://localhost:8080`. Чтобы изменить порт хоста,
+задай `HOST_PORT`, например `HOST_PORT=8081 docker compose up -d`.
+`MONGO_URI` из `.env` используется при локальном запуске; в контейнере Compose
+подменяет его внутренним адресом MongoDB.
+
+Полезные команды:
+
+```bash
+docker compose logs -f api
+docker compose down
+```
+
 Переменные окружения:
 
 | Переменная | По умолчанию | Описание |

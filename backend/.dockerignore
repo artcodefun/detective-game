@@ -1,0 +1,7 @@
+.env
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+README.md
+cmd/server/__debug_bin*
