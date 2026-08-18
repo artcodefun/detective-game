@@ -24,13 +24,7 @@ class FinalReport {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'who': who,
-      'why': why,
-      'how': how,
-      'when': when,
-      'evidence': evidence,
-    };
+    return {'who': who, 'why': why, 'how': how, 'when': when, 'evidence': evidence};
   }
 }
 
@@ -50,13 +44,7 @@ class ScoreBreakdown {
   });
 
   int get correctCount {
-    return [
-      whoCorrect,
-      whyCorrect,
-      howCorrect,
-      whenCorrect,
-      evidenceCorrect,
-    ].where((c) => c).length;
+    return [whoCorrect, whyCorrect, howCorrect, whenCorrect, evidenceCorrect].where((c) => c).length;
   }
 
   int get totalCount => 5;
@@ -110,13 +98,7 @@ class ScoreBreakdownDetails {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'who': who,
-      'why': why,
-      'how': how,
-      'when': when,
-      'evidence': evidence,
-    };
+    return {'who': who, 'why': why, 'how': how, 'when': when, 'evidence': evidence};
   }
 }
 
@@ -137,16 +119,10 @@ class GameResult {
 
   factory GameResult.fromJson(Map<String, dynamic> json) {
     return GameResult(
-      playerReport: FinalReport.fromJson(
-        json['player_report'] as Map<String, dynamic>,
-      ),
-      breakdown: ScoreBreakdown.fromJson(
-        json['breakdown'] as Map<String, dynamic>,
-      ),
+      playerReport: FinalReport.fromJson(json['player_report'] as Map<String, dynamic>),
+      breakdown: ScoreBreakdown.fromJson(json['breakdown'] as Map<String, dynamic>),
       narrativeFeedback: json['narrative_feedback'] as String,
-      breakdownDetails: ScoreBreakdownDetails.fromJson(
-        json['breakdown_details'] as Map<String, dynamic>,
-      ),
+      breakdownDetails: ScoreBreakdownDetails.fromJson(json['breakdown_details'] as Map<String, dynamic>),
       missedFacts: List<String>.from(json['missed_facts'] ?? []),
     );
   }

@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:provider/provider.dart';
 
-import '../blocs/session_cubit.dart';
 import '../models/action_report.dart';
 import '../models/game_state.dart';
 import '../models/scenario.dart';
 import '../services/api_service.dart';
+import '../services/session_service.dart';
 
 enum _ActionKind { evidenceAnalysis, suspectAction, camera, alibi }
 
-enum _ActionRequest {
-  dnaAnalysis,
-  fingerprints,
-  callHistory,
-  cameraReview,
-  transactionCheck,
-  alibiCheck,
-}
+enum _ActionRequest { dnaAnalysis, fingerprints, callHistory, cameraReview, transactionCheck, alibiCheck }
 
 class _ActionData {
   final IconData icon;
@@ -94,7 +87,7 @@ class ActionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final actionPoints = context.watch<SessionCubit>().state?.actionPoints ?? 0;
+    final actionPoints = context.watch<SessionService>().state?.actionPoints ?? 0;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Действия'),
@@ -106,12 +99,7 @@ class ActionsScreen extends StatelessWidget {
               children: [
                 Icon(Icons.search, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: 4),
-                Text(
-                  '$actionPoints',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('$actionPoints', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -124,9 +112,7 @@ class ActionsScreen extends StatelessWidget {
           children: [
             Text(
               'Потратьте очки действий, чтобы заказать анализ или запросить информацию',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withAlpha(140),
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withAlpha(140)),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -135,10 +121,7 @@ class ActionsScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 1.3,
-                children:
-                    _actions
-                        .map((action) => _ActionCard(action: action))
-                        .toList(),
+                children: _actions.map((action) => _ActionCard(action: action)).toList(),
               ),
             ),
           ],
@@ -173,9 +156,7 @@ class _ActionCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   action.name,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -188,11 +169,7 @@ class _ActionCard extends StatelessWidget {
                 ),
                 child: Text(
                   '${action.cost} AP',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 11, color: colorScheme.primary, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -203,20 +180,16 @@ class _ActionCard extends StatelessWidget {
   }
 
   void _openSheet(BuildContext context) {
-    final session = context.read<SessionCubit>().state;
+    final session = context.read<SessionService>().state;
     if (session == null) return;
     if (session.actionPoints < action.cost) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Недостаточно очков действий')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Недостаточно очков действий')));
       return;
     }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _ActionSheet(action: action),
     );
   }
@@ -265,7 +238,7 @@ class _ActionSheetState extends State<_ActionSheet> {
     setState(() => _isSubmitting = true);
     try {
       final api = context.read<ApiService>();
-      final sessionCubit = context.read<SessionCubit>();
+      final sessionService = context.read<SessionService>();
       final report = await switch (widget.action.request) {
         _ActionRequest.dnaAnalysis => api.dnaAnalysis(_evidenceID!),
         _ActionRequest.fingerprints => api.fingerprintsCheck(_evidenceID!),
@@ -277,7 +250,7 @@ class _ActionSheetState extends State<_ActionSheet> {
           alibiText: _alibiController.text.trim(),
         ),
       };
-      await sessionCubit.refreshSession();
+      await sessionService.refresh();
       if (!mounted) return;
       setState(() {
         _report = report;
@@ -286,9 +259,7 @@ class _ActionSheetState extends State<_ActionSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
     }
   }
 
@@ -301,16 +272,9 @@ class _ActionSheetState extends State<_ActionSheet> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            12,
-            20,
-            20 + MediaQuery.viewInsetsOf(context).bottom,
-          ),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-            ),
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
@@ -336,9 +300,7 @@ class _ActionSheetState extends State<_ActionSheet> {
                         Expanded(
                           child: Text(
                             widget.action.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ),
                         if (!_isSubmitting)
@@ -350,9 +312,7 @@ class _ActionSheetState extends State<_ActionSheet> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _isSubmitting
-                        ? _buildProgress(theme)
-                        : _buildForm(theme, colorScheme),
+                    _isSubmitting ? _buildProgress(theme) : _buildForm(theme, colorScheme),
                   ],
                 ],
               ),
@@ -369,11 +329,7 @@ class _ActionSheetState extends State<_ActionSheet> {
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Выполняем действие…'),
-          ],
+          children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Выполняем действие…')],
         ),
       ),
     );
@@ -397,12 +353,7 @@ class _ActionSheetState extends State<_ActionSheet> {
       future: _evidenceFuture,
       builder: (_, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
         }
         final evidence = snapshot.data!;
         return Column(
@@ -411,21 +362,11 @@ class _ActionSheetState extends State<_ActionSheet> {
           children: [
             Text(
               'Выберите улику для анализа',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withAlpha(140),
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
             ),
             const SizedBox(height: 12),
             _buildSelectableList(
-              evidence
-                  .map(
-                    (item) => (
-                      id: item.id,
-                      title: item.name,
-                      subtitle: item.description,
-                    ),
-                  )
-                  .toList(),
+              evidence.map((item) => (id: item.id, title: item.name, subtitle: item.description)).toList(),
               _evidenceID,
               (id) => setState(() => _evidenceID = id),
             ),
@@ -442,12 +383,7 @@ class _ActionSheetState extends State<_ActionSheet> {
       future: _charactersFuture,
       builder: (_, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
         }
         final characters = snapshot.data!;
         return Column(
@@ -456,21 +392,11 @@ class _ActionSheetState extends State<_ActionSheet> {
           children: [
             Text(
               'Выберите подозреваемого',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withAlpha(140),
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
             ),
             const SizedBox(height: 12),
             _buildSelectableList(
-              characters
-                  .map(
-                    (item) => (
-                      id: item.id,
-                      title: item.name,
-                      subtitle: item.profession,
-                    ),
-                  )
-                  .toList(),
+              characters.map((item) => (id: item.id, title: item.name, subtitle: item.profession)).toList(),
               _characterID,
               (id) => setState(() => _characterID = id),
             ),
@@ -494,9 +420,7 @@ class _ActionSheetState extends State<_ActionSheet> {
         const SizedBox(height: 8),
         Text(
           'Стоимость: ${widget.action.cost} AP',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.primary,
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
         ),
         const SizedBox(height: 16),
         _submitButton(true),
@@ -509,35 +433,18 @@ class _ActionSheetState extends State<_ActionSheet> {
       future: _charactersFuture,
       builder: (_, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
         }
         final characters = snapshot.data!;
-        final canSubmit =
-            _characterID != null && _alibiController.text.trim().isNotEmpty;
+        final canSubmit = _characterID != null && _alibiController.text.trim().isNotEmpty;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Выберите подозреваемого и опишите алиби для проверки.',
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text('Выберите подозреваемого и опишите алиби для проверки.', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
             _buildSelectableList(
-              characters
-                  .map(
-                    (item) => (
-                      id: item.id,
-                      title: item.name,
-                      subtitle: item.profession,
-                    ),
-                  )
-                  .toList(),
+              characters.map((item) => (id: item.id, title: item.name, subtitle: item.profession)).toList(),
               _characterID,
               (id) => setState(() => _characterID = id),
             ),
@@ -550,9 +457,7 @@ class _ActionSheetState extends State<_ActionSheet> {
               scrollPadding: EdgeInsets.symmetric(vertical: 100),
               decoration: InputDecoration(
                 hintText: 'Опишите алиби, которое нужно проверить...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 16),
@@ -574,16 +479,8 @@ class _ActionSheetState extends State<_ActionSheet> {
               .map(
                 (item) => ListTile(
                   title: Text(item.title),
-                  subtitle: Text(
-                    item.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  leading: Icon(
-                    selectedID == item.id
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                  ),
+                  subtitle: Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  leading: Icon(selectedID == item.id ? Icons.radio_button_checked : Icons.radio_button_unchecked),
                   onTap: () => onSelected(item.id),
                   dense: true,
                 ),
@@ -595,18 +492,11 @@ class _ActionSheetState extends State<_ActionSheet> {
   Widget _submitButton(bool enabled) {
     return SizedBox(
       width: double.infinity,
-      child: FilledButton(
-        onPressed: enabled ? _submit : null,
-        child: Text('Заказать (${widget.action.cost} AP)'),
-      ),
+      child: FilledButton(onPressed: enabled ? _submit : null, child: Text('Заказать (${widget.action.cost} AP)')),
     );
   }
 
-  Widget _buildReport(
-    ThemeData theme,
-    ColorScheme colorScheme,
-    ActionReport report,
-  ) {
+  Widget _buildReport(ThemeData theme, ColorScheme colorScheme, ActionReport report) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -616,31 +506,21 @@ class _ActionSheetState extends State<_ActionSheet> {
             Icon(Icons.check_circle, color: colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                report.title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: Text(report.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
         const SizedBox(height: 8),
         Text(
           report.description,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurface.withAlpha(140),
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
         ),
         const Divider(height: 32),
         MarkdownBody(data: report.body),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Готово'),
-          ),
+          child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Готово')),
         ),
       ],
     );

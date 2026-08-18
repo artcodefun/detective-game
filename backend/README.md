@@ -4,11 +4,15 @@ Go-сервер для игры «Детектив» на стандартном
 
 ## Запуск
 
-Скопируй `.env.example` в `.env` и пропиши переменные:
+Скопируй `.env.example` в `.env`, пропиши переменные и экспортируй их в
+окружение текущей оболочки перед запуском:
 
 ```bash
 cp .env.example .env
-go run ./cmd/server/
+set -a
+source .env
+set +a
+go run ./cmd/server
 ```
 
 Переменные окружения:
@@ -17,9 +21,13 @@ go run ./cmd/server/
 |---|---|---|
 | `PORT` | `8080` | Порт сервера |
 | `OPENROUTER_API_KEY` | — | API-ключ OpenRouter |
-| `OPENROUTER_MODEL` | `openai/gpt-4o-mini` | Модель для запросов |
+| `OPENROUTER_MODEL` | `deepseek/deepseek-v4-flash` | Модель для запросов |
 | `MONGO_URI` | `mongodb://localhost:27017` | Подключение к MongoDB |
 | `MONGO_DATABASE` | `detective_game` | Имя базы данных |
+| `IOS_MIN_SUPPORTED_VERSION` | `0.0.0` | Минимальная версия приложения для iOS |
+| `ANDROID_MIN_SUPPORTED_VERSION` | `0.0.0` | Минимальная версия приложения для Android |
+| `IOS_UPDATE_URL` | — | Ссылка на обновление приложения для iOS |
+| `ANDROID_UPDATE_URL` | — | Ссылка на обновление приложения для Android |
 
 ## Архитектура
 
@@ -42,7 +50,7 @@ internal/
 ├── bootstrap/      — композиция зависимостей (Pure DI)
 ├── infrastructure/ — адаптеры (MongoDB, OpenRouter LLM)
 ├── interfaces/     — HTTP-обработчики, роутер, middleware
-└── api/            — OpenAPI-спецификация (openapi-v1.yaml)
+api/                — OpenAPI-спецификация (openapi-v1.yaml)
 ```
 
 ## Правила
@@ -88,3 +96,10 @@ internal/
 | GET | `/api/v1/reports/{reportId}` | Просмотр отчёта |
 
 Полная спецификация в формате OpenAPI 3.1: [`api/openapi-v1.yaml`](api/openapi-v1.yaml).
+
+## Проверки
+
+```bash
+gofmt -w .
+go test ./...
+```

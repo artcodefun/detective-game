@@ -18,18 +18,7 @@ mobile/.idea/
 backend/node_modules/
 backend/venv/
 backend/.env
-
-# Python / Jupyter
-tools/**/.venv/
-tools/**/__pycache__/
-tools/**/*.pyc
-tools/**/.ipynb_checkpoints/
-
-# Generated assets (copy to mobile/assets manually)
-tools/characters/*.png
-tools/evidence/*.png
-tools/audio/*.wav
-tools/audio/*.mp3
+backend/cmd/server/__debug_bin*
 
 # OS
 .DS_Store

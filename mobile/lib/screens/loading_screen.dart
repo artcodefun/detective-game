@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 
-import '../blocs/session_cubit.dart';
 import '../services/api_service.dart';
+import '../services/session_service.dart';
 import 'desk_screen.dart';
 
 const _messageTexts = [
@@ -74,7 +74,7 @@ class _LoadingScreenState extends State<LoadingScreen> with SingleTickerProvider
 
   Future<void> _generate() async {
     try {
-      await context.read<SessionCubit>().startNewGame();
+      await context.read<SessionService>().startNewGame();
       if (!mounted) return;
       _timer?.cancel();
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
@@ -140,11 +140,7 @@ class _LoadingScreenState extends State<LoadingScreen> with SingleTickerProvider
                 ),
               ],
               if (_error) ...[
-                Text(
-                  'Ошибка: $_errorText',
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
+                Text('Ошибка: $_errorText', style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: () {

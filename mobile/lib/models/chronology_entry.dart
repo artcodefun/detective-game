@@ -1,6 +1,14 @@
 import 'notebook.dart';
 
-enum ChronologyEventType { caseStarted, interrogation, labAnalysis, alibiCheck, cameraReview, transactionCheck, finalReport }
+enum ChronologyEventType {
+  caseStarted,
+  interrogation,
+  labAnalysis,
+  alibiCheck,
+  cameraReview,
+  transactionCheck,
+  finalReport,
+}
 
 class ChronologyEntry {
   final String id;

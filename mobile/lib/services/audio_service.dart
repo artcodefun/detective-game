@@ -9,11 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_state.dart';
 
 class AudioService {
-  AudioService._();
-
-  static final _instance = AudioService._();
-
-  factory AudioService() => _instance;
+  AudioService();
 
   static const _suspectReplyCount = 11;
   static const _maxMusicVolume = 0.3;
@@ -47,21 +43,22 @@ class AudioService {
   double _musicVolume = 0.5;
 
   double get soundVolume => _soundVolume;
+
   double get musicVolume => _musicVolume;
 
   Future<void> initialize() async {
+    final soloud = SoLoud.instance;
+    if (soloud.isInitialized) {
+      soloud.deinit();
+    }
+
     try {
       final preferences = await SharedPreferences.getInstance();
       _preferences = preferences;
       _soundVolume = _storedVolume(preferences, _soundVolumeKey, _soundVolume);
       _musicVolume = _storedVolume(preferences, _musicVolumeKey, _musicVolume);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to load audio settings',
-        name: 'AudioService',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      developer.log('Failed to load audio settings', name: 'AudioService', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -87,27 +84,18 @@ class AudioService {
       if (_suspectReplySource case final previousSource?) {
         await soloud.disposeSource(previousSource);
       }
-      final source = await soloud.loadAsset(
-        _suspectReplyAssets[_random.nextInt(_suspectReplyAssets.length)],
-      );
+      final source = await soloud.loadAsset(_suspectReplyAssets[_random.nextInt(_suspectReplyAssets.length)]);
       _suspectReplySource = source;
       // ignore: experimental_member_use
       source.filters.pitchShiftFilter.activate();
 
-      final handle = await soloud.play(source, volume: _soundVolume);
+      final handle = soloud.play(source, volume: _soundVolume);
       // ignore: experimental_member_use
-      source.filters.pitchShiftFilter
-          .semitones(soundHandle: handle)
-          .value = _pitch(character);
+      source.filters.pitchShiftFilter.semitones(soundHandle: handle).value = _pitch(character);
       // ignore: experimental_member_use
       source.filters.pitchShiftFilter.timeStretch(handle, _speed(character));
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to play suspect reply',
-        name: 'AudioService',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      developer.log('Failed to play suspect reply', name: 'AudioService', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -118,16 +106,10 @@ class AudioService {
       if (!await _activatePlayback()) return;
       SoLoud.instance.setPause(handle, false);
       _musicResumePosition = null;
-      _scheduleNextTrack(
-        handle,
-        _musicSource!,
-        _remainingMusicDuration(handle),
-      );
+      _scheduleNextTrack(handle, _musicSource!, _remainingMusicDuration(handle));
       return;
     }
-    await (_musicStartTask ??= _loadAndStartMusic().whenComplete(
-      () => _musicStartTask = null,
-    ));
+    await (_musicStartTask ??= _loadAndStartMusic().whenComplete(() => _musicStartTask = null));
   }
 
   void pauseMusic() {
@@ -140,9 +122,7 @@ class AudioService {
   }
 
   Future<void> afterSpeechRecognition() {
-    return _engineRestartTask ??= _restartEngine().whenComplete(
-      () => _engineRestartTask = null,
-    );
+    return _engineRestartTask ??= _restartEngine().whenComplete(() => _engineRestartTask = null);
   }
 
   Future<void> beforeSpeechRecognition() async {
@@ -176,13 +156,10 @@ class AudioService {
       await _ensureEngineStarted();
 
       final resumePosition = _musicResumePosition;
-      final musicIndex =
-          resumePosition != null && _currentMusicIndex != null
-              ? _currentMusicIndex!
-              : _nextMusicIndex();
+      final musicIndex = resumePosition != null && _currentMusicIndex != null ? _currentMusicIndex! : _nextMusicIndex();
       _musicSource = await soloud.loadAsset(_musicAssets[musicIndex]);
       _musicDuration = soloud.getLength(_musicSource!);
-      _musicHandle = await soloud.play(
+      _musicHandle = soloud.play(
         _musicSource!,
         volume: _effectiveMusicVolume,
         paused: _musicPaused || resumePosition != null,
@@ -195,19 +172,10 @@ class AudioService {
         }
       }
       if (!_musicPaused) {
-        _scheduleNextTrack(
-          _musicHandle!,
-          _musicSource!,
-          _remainingMusicDuration(_musicHandle!),
-        );
+        _scheduleNextTrack(_musicHandle!, _musicSource!, _remainingMusicDuration(_musicHandle!));
       }
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to start background music',
-        name: 'AudioService',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      developer.log('Failed to start background music', name: 'AudioService', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -217,9 +185,7 @@ class AudioService {
     final previousIndex = _currentMusicIndex;
     var index = _random.nextInt(_musicAssets.length);
     if (index == previousIndex) {
-      index =
-          (index + 1 + _random.nextInt(_musicAssets.length - 1)) %
-          _musicAssets.length;
+      index = (index + 1 + _random.nextInt(_musicAssets.length - 1)) % _musicAssets.length;
     }
     _currentMusicIndex = index;
     return index;
@@ -231,11 +197,7 @@ class AudioService {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  void _scheduleNextTrack(
-    SoundHandle handle,
-    AudioSource source,
-    Duration delay,
-  ) {
+  void _scheduleNextTrack(SoundHandle handle, AudioSource source, Duration delay) {
     _nextTrackTimer?.cancel();
     _nextTrackTimer = Timer(delay, () {
       _nextTrackTimer = null;
@@ -275,26 +237,16 @@ class AudioService {
     return session.setActive(true);
   }
 
-  double _storedVolume(
-    SharedPreferences preferences,
-    String key,
-    double fallback,
-  ) {
+  double _storedVolume(SharedPreferences preferences, String key, double fallback) {
     return (preferences.getDouble(key) ?? fallback).clamp(0.0, 1.0).toDouble();
   }
 
   Future<void> _saveVolume(String key, double volume) async {
     try {
-      final preferences =
-          _preferences ??= await SharedPreferences.getInstance();
+      final preferences = _preferences ??= await SharedPreferences.getInstance();
       await preferences.setDouble(key, volume);
     } catch (error, stackTrace) {
-      developer.log(
-        'Failed to save audio setting',
-        name: 'AudioService',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      developer.log('Failed to save audio setting', name: 'AudioService', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -310,9 +262,7 @@ class AudioService {
   double _speed(Character character) {
     final age = character.age.clamp(18, 80).toDouble();
     final ageBasedSpeed = 1.10 - (age - 18) * 0.18 / 62;
-    return (ageBasedSpeed + _variation(character.id, 0.02))
-        .clamp(0.92, 1.08)
-        .toDouble();
+    return (ageBasedSpeed + _variation(character.id, 0.02)).clamp(0.92, 1.08).toDouble();
   }
 
   double _variation(String value, double range) {

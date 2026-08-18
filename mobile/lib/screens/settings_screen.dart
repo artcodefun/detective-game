@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../services/audio_service.dart';
 
@@ -10,13 +11,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _audio = AudioService();
+  late final AudioService _audio;
   late double _soundVolume;
   late double _musicVolume;
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
     _soundVolume = _audio.soundVolume;
     _musicVolume = _audio.musicVolume;
   }
@@ -47,12 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 const Icon(Icons.volume_up),
-                Expanded(
-                  child: Slider(
-                    value: _soundVolume,
-                    onChanged: _setSoundVolume,
-                  ),
-                ),
+                Expanded(child: Slider(value: _soundVolume, onChanged: _setSoundVolume)),
                 Text('${(_soundVolume * 100).round()}%'),
               ],
             ),
@@ -62,12 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 const Icon(Icons.music_note),
-                Expanded(
-                  child: Slider(
-                    value: _musicVolume,
-                    onChanged: _setMusicVolume,
-                  ),
-                ),
+                Expanded(child: Slider(value: _musicVolume, onChanged: _setMusicVolume)),
                 Text('${(_musicVolume * 100).round()}%'),
               ],
             ),

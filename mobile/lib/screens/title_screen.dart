@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../blocs/session_cubit.dart';
 import '../models/scenario.dart';
 import '../services/api_service.dart';
+import '../services/session_service.dart';
 import 'desk_screen.dart';
 import 'loading_screen.dart';
 import 'previous_cases_screen.dart';
@@ -42,28 +42,19 @@ class _TitleScreenState extends State<TitleScreen> {
   }
 
   void _onApiChanged() {
-    if (_api.initializationStatus == InitializationStatus.ready &&
-        _checking &&
-        !_checkingRequest) {
+    if (_api.initializationStatus == InitializationStatus.ready && _checking && !_checkingRequest) {
       _checkActiveSession();
     }
     if ((_api.initializationStatus == InitializationStatus.versionCheckFailed ||
-            _api.initializationStatus ==
-                InitializationStatus.registrationFailed) &&
+            _api.initializationStatus == InitializationStatus.registrationFailed) &&
         !_modalSheetOpen &&
         mounted) {
       _modalSheetOpen = true;
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _showInitializationError(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showInitializationError());
     }
-    if (_api.initializationStatus == InitializationStatus.updateRequired &&
-        !_modalSheetOpen &&
-        mounted) {
+    if (_api.initializationStatus == InitializationStatus.updateRequired && !_modalSheetOpen && mounted) {
       _modalSheetOpen = true;
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _showUpdateRequired(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showUpdateRequired());
     }
     if (mounted) setState(() {});
   }
@@ -73,9 +64,7 @@ class _TitleScreenState extends State<TitleScreen> {
       context: context,
       isDismissible: false,
       enableDrag: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder:
           (sheetContext) => Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -86,24 +75,16 @@ class _TitleScreenState extends State<TitleScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      sheetContext,
-                    ).colorScheme.onSurface.withAlpha(60),
+                    color: Theme.of(sheetContext).colorScheme.onSurface.withAlpha(60),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 20),
                 const Icon(Icons.cloud_off, size: 36),
                 const SizedBox(height: 12),
-                Text(
-                  'Не удалось подключиться к серверу',
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
+                Text('Не удалось подключиться к серверу', style: Theme.of(sheetContext).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                const Text(
-                  'Проверьте подключение к интернету и попробуйте ещё раз.',
-                  textAlign: TextAlign.center,
-                ),
+                const Text('Проверьте подключение к интернету и попробуйте ещё раз.', textAlign: TextAlign.center),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -136,23 +117,13 @@ class _TitleScreenState extends State<TitleScreen> {
               children: [
                 const Icon(Icons.system_update, size: 40),
                 const SizedBox(height: 12),
-                Text(
-                  'Требуется обновление',
-                  style: Theme.of(sheetContext).textTheme.titleMedium,
-                ),
+                Text('Требуется обновление', style: Theme.of(sheetContext).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                const Text(
-                  'Обновите приложение для продолжения работы.',
-                  textAlign: TextAlign.center,
-                ),
+                const Text('Обновите приложение для продолжения работы.', textAlign: TextAlign.center),
                 const SizedBox(height: 20),
                 if (_api.updateUrl case final url? when url.isNotEmpty)
                   FilledButton(
-                    onPressed:
-                        () => launchUrl(
-                          Uri.parse(url),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                    onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
                     child: const Text('Обновить'),
                   ),
               ],
@@ -176,16 +147,10 @@ class _TitleScreenState extends State<TitleScreen> {
   void _continueCase() {
     if (_activeSession == null) return;
     final s = _activeSession!;
-    context.read<SessionCubit>().resumeSession(
-      s.id,
-      s.caseName,
-      s.actionPoints,
-      s.phase,
+    context.read<SessionService>().resume(
+      SessionState(sessionId: s.id, caseName: s.caseName, actionPoints: s.actionPoints, phase: s.phase),
     );
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DeskScreen()),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
   }
 
   @override
@@ -206,10 +171,7 @@ class _TitleScreenState extends State<TitleScreen> {
               const SizedBox(height: 16),
               Text(
                 'ДетектИИв',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+                style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 2),
               ),
               const SizedBox(height: 4),
               const _CaseNumberAnimation(),
@@ -228,12 +190,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     loading
                         ? null
                         : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoadingScreen(),
-                            ),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const LoadingScreen()));
                         },
               ),
               const SizedBox(height: 12),
@@ -244,12 +201,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     loading
                         ? null
                         : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PreviousCasesScreen(),
-                            ),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const PreviousCasesScreen()));
                         },
               ),
               const SizedBox(height: 12),
@@ -260,12 +212,7 @@ class _TitleScreenState extends State<TitleScreen> {
                     loading
                         ? null
                         : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SettingsScreen(),
-                            ),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                         },
               ),
             ],
@@ -281,11 +228,7 @@ class _TitleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
 
-  const _TitleButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
+  const _TitleButton({required this.label, required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -301,9 +244,7 @@ class _TitleButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           foregroundColor: colorScheme.onPrimaryContainer,
           backgroundColor: colorScheme.primaryContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 16),
         ),
       ),
@@ -334,10 +275,7 @@ class _CaseNumberAnimationState extends State<_CaseNumberAnimation> {
   void initState() {
     super.initState();
     _number = (1000 + _random.nextInt(9000)).toString();
-    _timer = Timer.periodic(
-      const Duration(milliseconds: 80),
-      (_) => _scramble(),
-    );
+    _timer = Timer.periodic(const Duration(milliseconds: 80), (_) => _scramble());
   }
 
   @override
@@ -366,10 +304,7 @@ class _CaseNumberAnimationState extends State<_CaseNumberAnimation> {
 
     return Text(
       'Дело №${chars.join()}',
-      style: theme.textTheme.titleMedium?.copyWith(
-        color: theme.colorScheme.onSurface.withAlpha(120),
-        letterSpacing: 4,
-      ),
+      style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(120), letterSpacing: 4),
     );
   }
 }

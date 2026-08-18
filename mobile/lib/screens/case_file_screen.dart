@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models/action_report.dart';
@@ -15,10 +15,7 @@ class CaseFileScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Дело'),
-          bottom: const TabBar(tabs: [Tab(text: 'Факты'), Tab(text: 'Улики')]),
-        ),
+        appBar: AppBar(title: const Text('Дело'), bottom: const TabBar(tabs: [Tab(text: 'Факты'), Tab(text: 'Улики')])),
         body: const TabBarView(children: [_FactsTab(), _EvidenceTab()]),
       ),
     );
@@ -27,6 +24,7 @@ class CaseFileScreen extends StatelessWidget {
 
 class _FactsTab extends StatefulWidget {
   const _FactsTab();
+
   @override
   State<_FactsTab> createState() => _FactsTabState();
 }
@@ -37,9 +35,7 @@ class _FactsTabState extends State<_FactsTab> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<ApiService>().getCurrentSession().then(
-      (s) => s.caseBrief,
-    );
+    _future = context.read<ApiService>().getCurrentSession().then((s) => s.caseBrief);
   }
 
   @override
@@ -50,15 +46,13 @@ class _FactsTabState extends State<_FactsTab> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError ||
-            snapshot.data == null ||
-            snapshot.data!.isEmpty) {
+        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
           return Center(
             child: Text(
               'Документ ещё не готов',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
             ),
           );
         }
@@ -68,55 +62,19 @@ class _FactsTabState extends State<_FactsTab> {
             data: snapshot.data!,
             padding: const EdgeInsets.all(16),
             styleSheet: MarkdownStyleSheet(
-              h1: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              h2: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              h3: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-              p: const TextStyle(
-                fontSize: 15,
-                color: Colors.black87,
-                height: 1.6,
-              ),
-              strong: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              em: const TextStyle(
-                fontStyle: FontStyle.italic,
-                color: Colors.black87,
-              ),
+              h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              h2: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+              h3: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
+              p: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.6),
+              strong: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+              em: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black87),
               listBullet: const TextStyle(fontSize: 15, color: Colors.black87),
               tableBody: const TextStyle(fontSize: 14, color: Colors.black87),
-              tableHead: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              tableBorder: TableBorder.all(
-                color: Colors.grey.shade400,
-                width: 0.5,
-              ),
+              tableHead: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+              tableBorder: TableBorder.all(color: Colors.grey.shade400, width: 0.5),
               tableColumnWidth: const FlexColumnWidth(),
-              tableCellsPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              code: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade800,
-                backgroundColor: Colors.grey.shade200,
-              ),
+              tableCellsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              code: TextStyle(fontSize: 13, color: Colors.grey.shade800, backgroundColor: Colors.grey.shade200),
             ),
           ),
         );
@@ -129,16 +87,19 @@ sealed class _Item {}
 
 class _EvidenceItem extends _Item {
   final Evidence evidence;
+
   _EvidenceItem(this.evidence);
 }
 
 class _ReportItem extends _Item {
   final ActionReport report;
+
   _ReportItem(this.report);
 }
 
 class _EvidenceTab extends StatefulWidget {
   const _EvidenceTab();
+
   @override
   State<_EvidenceTab> createState() => _EvidenceTabState();
 }
@@ -156,10 +117,7 @@ class _EvidenceTabState extends State<_EvidenceTab> {
     final api = context.read<ApiService>();
     final evidence = await api.listEvidence();
     final reports = await api.listReports();
-    return [
-      ...reports.map(_ReportItem.new),
-      ...evidence.map(_EvidenceItem.new),
-    ];
+    return [...reports.map(_ReportItem.new), ...evidence.map(_EvidenceItem.new)];
   }
 
   @override
@@ -178,9 +136,9 @@ class _EvidenceTabState extends State<_EvidenceTab> {
           return Center(
             child: Text(
               'Улик и отчётов пока нет',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
             ),
           );
         }
@@ -202,6 +160,7 @@ class _EvidenceTabState extends State<_EvidenceTab> {
 
 class _EvidenceCard extends StatelessWidget {
   final Evidence evidence;
+
   const _EvidenceCard({required this.evidence});
 
   @override
@@ -223,28 +182,17 @@ class _EvidenceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      evidence.name,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(evidence.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
                     Text(
                       evidence.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withAlpha(140),
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: colorScheme.onSurface.withAlpha(80),
-              ),
+              Icon(Icons.chevron_right, size: 20, color: colorScheme.onSurface.withAlpha(80)),
             ],
           ),
         ),
@@ -258,9 +206,7 @@ class _EvidenceCard extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder:
           (_) => Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -279,17 +225,9 @@ class _EvidenceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  evidence.name,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(evidence.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                Text(
-                  evidence.detailedDescription,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                Text(evidence.detailedDescription, style: theme.textTheme.bodyMedium),
               ],
             ),
           ),
@@ -299,6 +237,7 @@ class _EvidenceCard extends StatelessWidget {
 
 class _ReportCard extends StatelessWidget {
   final ActionReport report;
+
   const _ReportCard({required this.report});
 
   @override
@@ -311,10 +250,7 @@ class _ReportCard extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder:
-                  (_) => DocumentScreen(title: report.title, body: report.body),
-            ),
+            MaterialPageRoute(builder: (_) => DocumentScreen(title: report.title, body: report.body)),
           );
         },
         borderRadius: BorderRadius.circular(12),
@@ -328,28 +264,17 @@ class _ReportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      report.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(report.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
                     Text(
                       report.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withAlpha(140),
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: colorScheme.onSurface.withAlpha(80),
-              ),
+              Icon(Icons.chevron_right, size: 20, color: colorScheme.onSurface.withAlpha(80)),
             ],
           ),
         ),
