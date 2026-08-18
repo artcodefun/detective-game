@@ -30,8 +30,9 @@ docker compose up --build -d
 `MONGO_ROOT_PASSWORD` из `.env.example`; Compose намеренно не запускается без
 этих переменных.
 
-API будет доступен по `http://localhost:8080`. Чтобы изменить порт хоста,
-задай `HOST_PORT`, например `HOST_PORT=8081 docker compose up -d`.
+API будет доступен только с самого сервера по `http://127.0.0.1:${HOST_PORT:-8080}`.
+Для внешнего доступа используй reverse proxy. `PORT` задаёт порт API внутри контейнера,
+а `HOST_PORT` — локальный порт сервера; например, `HOST_PORT=8081 docker compose up -d`.
 `MONGO_URI` из `.env` используется при локальном запуске; в контейнере Compose
 подменяет его внутренним адресом MongoDB.
 
