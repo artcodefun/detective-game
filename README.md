@@ -68,6 +68,23 @@ npm run dev
 (cd website && npm run build && npm run lint)
 ```
 
+## CI/CD
+
+GitHub Actions запускает проверки backend и website для каждого push и pull
+request в `main`. После успешных проверок push в `main` разворачивается на VPS
+по SSH: репозиторий обновляется, Docker-образы backend и website собираются, а
+затем оба Compose-проекта перезапускаются.
+
+В GitHub Actions должны быть настроены repository secrets:
+
+- `VPS_HOST` — адрес VPS;
+- `VPS_USER` — SSH-пользователь;
+- `VPS_SSH_KEY` — приватный SSH-ключ для deployment.
+
+На сервере репозиторий должен находиться в каталоге `detective-game` внутри
+домашней директории SSH-пользователя. Файлы `backend/.env` и `website/.env`
+создаются на сервере вручную и не хранятся в Git.
+
 Подробности находятся в [`backend/README.md`](backend/README.md) и
 [`mobile/README.md`](mobile/README.md), а инструкции по сайту и его Docker-запуску
 — в [`website/README.md`](website/README.md).
