@@ -12,11 +12,15 @@
 }
 
 html {
-    scroll-behavior: smooth
+    scroll-behavior: smooth;
+    max-width: 100%;
+    overflow-x: hidden
 }
 
 body {
     margin: 0;
+    max-width: 100%;
+    overflow-x: hidden;
     color: var(--paper);
     background: var(--ink);
     font-family: Arial, Helvetica, sans-serif
@@ -455,7 +459,10 @@ footer p {
 }
 
 .legal-shell {
+    width: 100%;
+    max-width: 100%;
     min-height: 100svh;
+    overflow-x: hidden;
     background: #dcd3c1;
     color: #2b241d;
     background-image: linear-gradient(#5d4a3212 1px, transparent 1px);
@@ -481,35 +488,53 @@ footer p {
 }
 
 .legal-document {
-    width: min(1060px, 86vw);
+    width: min(920px, 86vw);
+    min-width: 0;
     margin: 0 auto;
-    padding: 100px 0 120px;
-    display: grid;
-    grid-template-columns: .72fr 1.28fr;
-    gap: 10vw
+    padding: 100px 0 120px
+}
+
+.legal-document>* {
+    min-width: 0
 }
 
 .document-title {
-    position: sticky;
-    top: 55px;
-    align-self: start
+    max-width: 100%;
+    padding-bottom: 44px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid #493a2925
 }
 
 .document-title h1 {
-    font-size: clamp(48px, 5.3vw, 78px);
-    line-height: .94
+    max-width: 100%;
+    font-size: clamp(60px, 5.8vw, 84px);
+    line-height: .94;
+    overflow-wrap: normal;
+    hyphens: none
 }
 
 .document-title>p:last-child {
+    max-width: 760px;
     margin-top: 30px;
-    font: 18px/1.6 Georgia, serif;
+    margin-bottom: 0;
+    font: 20px/1.6 Georgia, serif;
     color: #5a4d40
 }
 
+.document-content {
+    width: min(760px, 100%);
+    margin-left: 0
+}
+
 .document-content section {
-    padding: 0 0 34px;
-    margin: 0 0 34px;
+    padding: 0 0 26px;
+    margin: 0 0 26px;
     border-bottom: 1px solid #493a2925
+}
+
+.document-content,
+.document-content section {
+    min-width: 0
 }
 
 .document-content h2 {
@@ -525,7 +550,8 @@ footer p {
 .document-content p,
 .document-content li {
     color: #504438;
-    line-height: 1.75
+    line-height: 1.75;
+    overflow-wrap: anywhere
 }
 
 .document-content a {
@@ -535,7 +561,8 @@ footer p {
 }
 
 .document-content ol {
-    padding-left: 22px
+    padding-left: 28px;
+    list-style: decimal outside
 }
 
 .document-content li {
@@ -584,15 +611,26 @@ footer p {
     }
 
     .legal-document {
-        width: auto;
+        width: 100%;
+        max-width: 100%;
         margin: 0;
         padding: 70px 24px 90px;
-        grid-template-columns: 1fr;
-        gap: 55px
     }
 
     .document-title {
-        position: static
+        padding-bottom: 36px;
+        margin-bottom: 32px
+    }
+
+    .document-title>p:last-child {
+        font-size: 18px
+    }
+
+    .document-title h1 {
+        font-size: clamp(38px, 12vw, 50px);
+        line-height: .98;
+        overflow-wrap: anywhere;
+        hyphens: auto
     }
 
     .legal-footer {
