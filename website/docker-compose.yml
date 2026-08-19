@@ -1,0 +1,9 @@
+services:
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: detective-game-website:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEBSITE_PORT:-8081}:80"

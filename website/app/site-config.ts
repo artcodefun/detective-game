@@ -1,0 +1,1 @@
+export const siteConfig = { productName: "ДетектИИв", developerName: "artcodefun", supportEmail: "artcodefun@gmail.com", websiteUrl: "https://detective-game.artcodefun.com", updatedAt: "19 августа 2026 года" };
