@@ -6,6 +6,8 @@
 
 ## Состав проекта
 
+![Diagram](.github/diagram.png)
+
 - `mobile/` — Flutter-клиент для Android и iOS.
 - `backend/` — Go API, MongoDB-хранилище и интеграция с OpenRouter.
 - `backend/api/openapi-v1.yaml` — актуальный контракт HTTP API.
