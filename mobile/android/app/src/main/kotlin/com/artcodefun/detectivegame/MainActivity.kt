@@ -1,4 +1,4 @@
-package com.detectivegame.detective_game
+package com.artcodefun.detectivegame
 
 import io.flutter.embedding.android.FlutterActivity
 
