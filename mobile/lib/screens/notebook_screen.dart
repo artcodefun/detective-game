@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/chronology_entry.dart';
 import '../models/notebook.dart';
 import '../services/api_service.dart';
+import '../widgets/load_error_view.dart';
 
 class NotebookScreen extends StatefulWidget {
   const NotebookScreen({super.key});
@@ -26,6 +27,12 @@ class _NotebookScreenState extends State<NotebookScreen> {
     final chronology = await context.read<ApiService>().getChronology();
     _chronology = chronology;
     return chronology;
+  }
+
+  void _retryLoadChronology() {
+    setState(() {
+      _future = _loadChronology();
+    });
   }
 
   void _updateNotebookEntry(ChronologyEntry chronology, NotebookEntry entry, List<NoteTag> tags, String? note) {
@@ -102,7 +109,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: Text('Ошибка: ${snapshot.error}'));
+              return LoadErrorView(message: 'Не удалось загрузить блокнот', onRetry: _retryLoadChronology);
             }
             final chronology = _chronology ?? snapshot.data!;
             return TabBarView(children: [_buildTimeline(theme, chronology), _buildNotes(theme, chronology)]);

@@ -13,10 +13,13 @@
   "error.forbidden": "Access denied",
   "error.conflict": "Operation is unavailable in the current state",
   "error.invalid_input": "Invalid input",
+  "error.invalid_interrogation_question": "The question must contain no more than 600 characters",
 	"error.unauthorized": "Authentication required",
   "error.active_interrogation_exists": "Complete the current interrogation first",
   "error.no_interrogations_left": "No interrogations remaining",
+	"error.interrogation_question_limit_reached": "The question limit for this interrogation has been reached",
   "error.interrogation_not_active": "Interrogation is already completed",
   "error.not_enough_action_points": "Not enough action points",
+	"error.evidence_action_already_completed": "This analysis has already been performed for the evidence",
   "error.session_already_finished": "Investigation is already finished"
 }

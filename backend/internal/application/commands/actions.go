@@ -35,6 +35,9 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
+	if session.Phase == domain.GamePhaseFinished {
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+	}
 
 	if session.ActionPoints < req.kind.Cost() {
 		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.not_enough_action_points"))
@@ -45,6 +48,13 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		evidence, err = c.Evidence.FindEvidenceByID(ctx, actor.SessionID, *req.evidenceID)
 		if err != nil {
 			return uuid.Nil, application.WrapError(err)
+		}
+		existingReport, err := c.Reports.FindReportByEvidenceAction(ctx, actor.SessionID, req.kind, *req.evidenceID)
+		if err != nil {
+			return uuid.Nil, application.WrapError(err)
+		}
+		if existingReport != nil {
+			return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.evidence_action_already_completed"))
 		}
 	}
 	var character *domain.Character

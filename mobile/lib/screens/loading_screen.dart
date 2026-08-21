@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
 import '../services/session_service.dart';
+import '../widgets/load_error_view.dart';
 import 'desk_screen.dart';
 
 const _messageTexts = [
@@ -95,69 +96,69 @@ class _LoadingScreenState extends State<LoadingScreen> with SingleTickerProvider
     }
   }
 
+  void _retryGeneration() {
+    setState(() {
+      _error = false;
+      _msgIndex = 0;
+      _messages = List.from(_messageTexts)..shuffle();
+    });
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _nextMessage());
+    _fadeController.forward();
+    _generate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Новое дело'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _error ? Icons.error_outline : Icons.search,
-                size: 64,
-                color: _error ? colorScheme.error : colorScheme.primary,
-              ),
-              const SizedBox(height: 32),
-              if (!_error) ...[
-                SizedBox(
-                  height: 48,
-                  child: Center(
-                    child: FadeTransition(
-                      opacity: _fadeAnim,
-                      child: Text(
-                        _messages[_msgIndex],
-                        style: theme.textTheme.titleMedium,
-                        textAlign: TextAlign.center,
+    return PopScope(
+      canPop: _error,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Новое дело'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _error ? () => Navigator.pop(context) : null,
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _error ? Icons.error_outline : Icons.search,
+                  size: 64,
+                  color: _error ? colorScheme.error : colorScheme.primary,
+                ),
+                const SizedBox(height: 32),
+                if (!_error) ...[
+                  SizedBox(
+                    height: 48,
+                    child: Center(
+                      child: FadeTransition(
+                        opacity: _fadeAnim,
+                        child: Text(
+                          _messages[_msgIndex],
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const LinearProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  'Пожалуйста, подождите...',
-                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
-                ),
+                  const SizedBox(height: 24),
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Пожалуйста, подождите...',
+                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(120)),
+                  ),
+                ],
+                if (_error) ...[LoadErrorView(message: 'Ошибка: $_errorText', onRetry: _retryGeneration)],
               ],
-              if (_error) ...[
-                Text('Ошибка: $_errorText', style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _error = false;
-                      _msgIndex = 0;
-                      _messages = List.from(_messageTexts)..shuffle();
-                    });
-                    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _nextMessage());
-                    _fadeController.forward();
-                    _generate();
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Повторить'),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),

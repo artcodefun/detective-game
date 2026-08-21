@@ -12,6 +12,9 @@ import '../services/session_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/mood_indicator.dart';
 
+const _maxQuestionsPerInterrogation = 10;
+const _maxQuestionLength = 600;
+
 class InterrogationScreen extends StatefulWidget {
   final String characterId;
   final String? interrogationId;
@@ -29,6 +32,9 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   final _speech = stt.SpeechToText();
   late final AudioService _audio;
   bool _isWaiting = false;
+  bool _isCompleted = false;
+  String? _pendingMessageText;
+  String? _failedMessageText;
   bool _isListening = false;
   bool _isStoppingSpeech = false;
   Completer<void>? _speechFinalResult;
@@ -66,11 +72,15 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
 
   Future<void> _startInterrogation() async {
     try {
-      final interId = widget.interrogationId ?? (await _api.createInterrogation(widget.characterId)).id;
-      _interId = interId;
+      final interrogation =
+          widget.interrogationId == null
+              ? await _api.createInterrogation(widget.characterId)
+              : await _api.getInterrogation(widget.interrogationId!);
+      _interId = interrogation.id;
+      _isCompleted = !interrogation.isActive;
 
       if (widget.interrogationId != null) {
-        final messages = await _api.getInterrogationMessages(interId);
+        final messages = await _api.getInterrogationMessages(interrogation.id);
         if (mounted) setState(() => _messages.addAll(messages));
       }
 
@@ -215,22 +225,18 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     }
 
     final text = _textController.text.trim();
-    if (text.isEmpty || _isWaiting || _interId == null) return;
+    if (text.isEmpty || _isWaiting || _interId == null || _isCompleted) return;
 
-    _textController.clear();
+    if (_questionsAsked >= _maxQuestionsPerInterrogation) {
+      setState(() => _isCompleted = true);
+      return;
+    }
 
     setState(() {
-      _messages.add(
-        ChatMessage(
-          id: '',
-          sessionId: '',
-          interrogationId: _interId!,
-          fromUser: true,
-          text: text,
-          timestamp: DateTime.now(),
-        ),
-      );
       _isWaiting = true;
+      _pendingMessageText = text;
+      _failedMessageText = null;
+      _textController.clear();
     });
     _scrollToBottom();
 
@@ -238,12 +244,24 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
       final msg = await _api.addInterrogationMessage(interId: _interId!, message: text);
       if (mounted) {
         setState(() {
+          _messages.add(
+            ChatMessage(
+              id: '',
+              sessionId: '',
+              interrogationId: _interId!,
+              fromUser: true,
+              text: text,
+              timestamp: DateTime.now(),
+            ),
+          );
           _messages.add(msg);
+          _pendingMessageText = null;
           if (_character != null && msg.attitudeDelta != 0) {
             _character = _character!.copyWith(
               trust: (_character!.trust + msg.attitudeDelta).clamp(Character.minTrust, Character.maxTrust),
             );
           }
+          _isCompleted = _questionsAsked >= _maxQuestionsPerInterrogation;
           _isWaiting = false;
         });
         if (_character != null) {
@@ -253,7 +271,12 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isWaiting = false);
+        setState(() {
+          _isWaiting = false;
+          _pendingMessageText = null;
+          _failedMessageText = text;
+          _textController.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     }
@@ -262,16 +285,16 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
   }
 
   Future<void> _closeInterrogation() async {
+    if (_isCompleted) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
     if (_interId != null) {
       final sessionService = context.read<SessionService>();
       try {
@@ -281,6 +304,59 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     }
     if (mounted) Navigator.pop(context);
   }
+
+  Future<void> _confirmCloseInterrogation() async {
+    if (_isWaiting) return;
+    if (_isCompleted) {
+      Navigator.pop(context);
+      return;
+    }
+
+    final shouldComplete = await showModalBottomSheet<bool>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder:
+          (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Завершить допрос?', style: Theme.of(sheetContext).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  const Text('Вы больше не сможете задавать вопросы этому персонажу в рамках этого допроса.'),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('Завершить допрос'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(sheetContext, false),
+                      child: const Text('Продолжить разговор'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+    if (shouldComplete == true && mounted) {
+      await _closeInterrogation();
+    }
+  }
+
+  int get _questionsAsked =>
+      _messages.where((message) => message.fromUser).length + (_pendingMessageText == null ? 0 : 1);
+
+  int get _questionsRemaining =>
+      (_maxQuestionsPerInterrogation - _questionsAsked).clamp(0, _maxQuestionsPerInterrogation);
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +374,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     final mood = char.trustLevel;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.surface,
@@ -310,11 +387,15 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
               child: Text(char.name[0], style: TextStyle(fontSize: 14, color: colorScheme.onPrimaryContainer)),
             ),
             const SizedBox(width: 8),
-            Text(char.name),
+            Flexible(child: Text(char.name)),
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.close), onPressed: _closeInterrogation, tooltip: 'Завершить допрос'),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _isWaiting ? null : _confirmCloseInterrogation,
+            tooltip: _isCompleted ? 'Закрыть' : 'Завершить допрос',
+          ),
         ],
       ),
       body: Column(
@@ -361,7 +442,7 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
   }
 
   Widget _buildChatList(ThemeData theme, String characterName) {
-    if (_messages.isEmpty) {
+    if (_messages.isEmpty && _pendingMessageText == null && _failedMessageText == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -376,23 +457,51 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
 
     return ListView.builder(
       controller: _scrollController,
+      reverse: true,
       padding: const EdgeInsets.all(16),
-      itemCount: _messages.length + (_isWaiting ? 1 : 0),
+      itemCount:
+          _messages.length +
+          (_pendingMessageText == null ? 0 : 1) +
+          (_failedMessageText == null ? 0 : 1) +
+          (_isWaiting ? 1 : 0),
       itemBuilder: (_, index) {
-        if (index == _messages.length && _isWaiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                SizedBox(width: 36),
-                SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-              ],
-            ),
-          );
+        var itemIndex = index;
+
+        if (_isWaiting) {
+          if (itemIndex == 0) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  SizedBox(width: 36),
+                  SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                ],
+              ),
+            );
+          }
+          itemIndex--;
         }
 
-        final msg = _messages[index];
-        return ChatBubble(text: msg.text, isPlayer: msg.fromUser, senderName: msg.fromUser ? 'Вы' : characterName);
+        if (_pendingMessageText case final pendingText?) {
+          if (itemIndex == 0) {
+            return ChatBubble(text: pendingText, isPlayer: true, senderName: 'Вы');
+          }
+          itemIndex--;
+        }
+
+        if (_failedMessageText case final failedText?) {
+          if (itemIndex == 0) {
+            return ChatBubble(text: failedText, isPlayer: true, senderName: 'Вы', isFailed: true);
+          }
+          itemIndex--;
+        }
+
+        final message = _messages[_messages.length - 1 - itemIndex];
+        return ChatBubble(
+          text: message.text,
+          isPlayer: message.fromUser,
+          senderName: message.fromUser ? 'Вы' : characterName,
+        );
       },
     );
   }
@@ -401,35 +510,48 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: _isWaiting ? null : _toggleListening,
-              icon: _isListening ? const Icon(Icons.mic, color: Colors.red) : const Icon(Icons.mic_none),
-              tooltip: _isListening ? 'Остановить запись' : 'Голосовой ввод',
+            Text(
+              _isCompleted
+                  ? 'Допрос завершён'
+                  : 'Вопросов осталось: $_questionsRemaining из $_maxQuestionsPerInterrogation',
+              style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withAlpha(140)),
             ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: TextField(
-                controller: _textController,
-                enabled: !_isWaiting,
-                maxLines: 3,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: _isListening ? 'Говорите...' : 'Задайте вопрос...',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                  filled: true,
-                  fillColor: _isListening ? Colors.red.withAlpha(15) : colorScheme.surfaceContainerHighest,
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: _isWaiting || _isCompleted ? null : _toggleListening,
+                  icon: _isListening ? const Icon(Icons.mic, color: Colors.red) : const Icon(Icons.mic_none),
+                  tooltip: _isListening ? 'Остановить запись' : 'Голосовой ввод',
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _isWaiting ? null : _sendMessage,
-              icon: const Icon(Icons.send),
-              tooltip: 'Отправить',
+                const SizedBox(width: 4),
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    enabled: !_isWaiting && !_isCompleted,
+                    maxLines: 3,
+                    minLines: 1,
+                    maxLength: _maxQuestionLength,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: _isListening ? 'Говорите...' : 'Задайте вопрос...',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                      filled: true,
+                      fillColor: _isListening ? Colors.red.withAlpha(15) : colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _isWaiting || _isCompleted ? null : _sendMessage,
+                  icon: const Icon(Icons.send),
+                  tooltip: 'Отправить',
+                ),
+              ],
             ),
           ],
         ),

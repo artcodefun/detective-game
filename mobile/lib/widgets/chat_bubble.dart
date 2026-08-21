@@ -4,8 +4,15 @@ class ChatBubble extends StatelessWidget {
   final String text;
   final bool isPlayer;
   final String senderName;
+  final bool isFailed;
 
-  const ChatBubble({super.key, required this.text, required this.isPlayer, required this.senderName});
+  const ChatBubble({
+    super.key,
+    required this.text,
+    required this.isPlayer,
+    required this.senderName,
+    this.isFailed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +50,11 @@ class ChatBubble extends StatelessWidget {
               child: Text(text, style: TextStyle(color: isPlayer ? colorScheme.onPrimary : colorScheme.onSurface)),
             ),
           ),
-          if (isPlayer) const SizedBox(width: 8),
+          if (isPlayer) ...[
+            const SizedBox(width: 8),
+            if (isFailed)
+              Tooltip(message: 'Не отправлено', child: Icon(Icons.error_outline, size: 20, color: colorScheme.error)),
+          ],
         ],
       ),
     );

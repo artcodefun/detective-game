@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/artcodefun/detective-game/backend/internal/application"
@@ -24,6 +25,14 @@ func NewInterrogationCommands(sessions ports.SessionRepository, interrogations p
 }
 
 func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
+	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	if err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+	if session.Phase == domain.GamePhaseFinished {
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+	}
+
 	active, err := c.Interrogations.FindActiveBySession(ctx, actor.SessionID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
@@ -58,6 +67,19 @@ func (c *InterrogationCommands) Create(ctx context.Context, actor application.Ac
 }
 
 func (c *InterrogationCommands) AddMessage(ctx context.Context, actor application.Actor, interrogationID uuid.UUID, message string) (uuid.UUID, error) {
+	message = strings.TrimSpace(message)
+	if !domain.ValidateInterrogationQuestion(message) {
+		return uuid.Nil, application.NewAppError(application.KindInvalidInput, domain.T("error.invalid_interrogation_question"))
+	}
+
+	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	if err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+	if session.Phase == domain.GamePhaseFinished {
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+	}
+
 	inter, err := c.Interrogations.FindInterrogationByID(ctx, interrogationID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
@@ -65,26 +87,34 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 	if !inter.IsActive() {
 		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.interrogation_not_active"))
 	}
+	messages, err := c.Chat.FindChatByInterrogation(ctx, interrogationID)
+	if err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+	if !inter.CanAskQuestion(messages) {
+		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.interrogation_question_limit_reached"))
+	}
 
 	char, err := c.Characters.FindCharacterByID(ctx, actor.SessionID, inter.CharacterID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
+	resp, err := c.LLM.RespondInInterrogation(ctx, actor.SessionContentLocale, *char, message)
+	if err != nil {
+		return uuid.Nil, application.WrapError(err)
+	}
+
+	now := time.Now()
 	playerMsg := domain.ChatMessage{
 		ID:              uuid.New(),
 		SessionID:       actor.SessionID,
 		InterrogationID: interrogationID,
 		FromUser:        true,
 		Text:            message,
-		Timestamp:       time.Now(),
+		Timestamp:       now,
 	}
 	if err := c.Chat.AppendChatMessage(ctx, &playerMsg); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	resp, err := c.LLM.RespondInInterrogation(ctx, actor.SessionContentLocale, *char, message)
-	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
@@ -108,7 +138,7 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		Text:            resp.Answer,
 		Statements:      resp.Statements,
 		AttitudeDelta:   resp.AttitudeDelta,
-		Timestamp:       time.Now(),
+		Timestamp:       now,
 	}
 	if err := c.Chat.AppendChatMessage(ctx, &npcMsg); err != nil {
 		return uuid.Nil, application.WrapError(err)
@@ -130,6 +160,12 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 	}
 	if len(details) > 0 {
 		if err := c.Chronology.AppendNotebookEntries(ctx, actor.SessionID, interrogationID, details); err != nil {
+			return uuid.Nil, application.WrapError(err)
+		}
+	}
+	if inter.ShouldCompleteAfterQuestion(messages) {
+		inter.Complete()
+		if err := c.Interrogations.UpdateInterrogation(ctx, inter); err != nil {
 			return uuid.Nil, application.WrapError(err)
 		}
 	}

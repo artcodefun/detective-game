@@ -159,6 +159,50 @@ class _TitleScreenState extends State<TitleScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const DeskScreen()));
   }
 
+  Future<void> _startNewCase() async {
+    final hasActiveCase = context.read<SessionService>().state != null;
+    if (hasActiveCase) {
+      final shouldStart = await showModalBottomSheet<bool>(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder:
+            (sheetContext) => SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Начать новое дело?', style: Theme.of(sheetContext).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    const Text('Текущее незавершённое дело будет закрыто. Вернуться к нему уже не получится.'),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(sheetContext, true),
+                        child: const Text('Начать новое дело'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(sheetContext, false),
+                        child: const Text('Отмена'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      );
+      if (shouldStart != true || !mounted) return;
+    }
+
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoadingScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionService>().state;
@@ -190,16 +234,7 @@ class _TitleScreenState extends State<TitleScreen> {
                   onPressed: loading ? null : _continueCase,
                 ),
               if (session != null || loading) const SizedBox(height: 12),
-              _TitleButton(
-                label: 'Новое дело',
-                icon: Icons.folder_open,
-                onPressed:
-                    loading
-                        ? null
-                        : () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const LoadingScreen()));
-                        },
-              ),
+              _TitleButton(label: 'Новое дело', icon: Icons.folder_open, onPressed: loading ? null : _startNewCase),
               const SizedBox(height: 12),
               _TitleButton(
                 label: 'Предыдущие дела',

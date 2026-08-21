@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/game_state.dart';
 import '../services/api_service.dart';
 import '../services/session_service.dart';
+import '../widgets/load_error_view.dart';
 import 'actions_screen.dart';
 import 'case_file_screen.dart';
 import 'interrogation_screen.dart';
@@ -198,15 +199,22 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
 
   Future<void> _checkAndLoad() async {
     final api = context.read<ApiService>();
-    final active = await api.getActiveInterrogation();
-    if (active != null && mounted) {
-      await _openInterrogation(characterId: active.characterId, interrogationId: active.id);
-      return;
-    }
-    final charactersFuture = api.listCharacters();
-    if (mounted) {
+    try {
+      final active = await api.getActiveInterrogation();
+      if (active != null && mounted) {
+        await _openInterrogation(characterId: active.characterId, interrogationId: active.id);
+        return;
+      }
+      final charactersFuture = api.listCharacters();
+      if (mounted) {
+        setState(() {
+          _charactersFuture = charactersFuture;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
       setState(() {
-        _charactersFuture = charactersFuture;
+        _charactersFuture = Future.error(StateError('Не удалось загрузить телефонную книгу'));
       });
     }
   }
@@ -253,7 +261,10 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
                               return const Center(child: CircularProgressIndicator());
                             }
                             if (snapshot.hasError) {
-                              return Center(child: Text('Ошибка загрузки', style: theme.textTheme.bodyMedium));
+                              return LoadErrorView(
+                                message: 'Не удалось загрузить телефонную книгу',
+                                onRetry: _checkAndLoad,
+                              );
                             }
                             final chars = snapshot.data!;
                             return ListView.separated(

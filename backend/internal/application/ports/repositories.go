@@ -49,6 +49,7 @@ type EvidenceRepository interface {
 type ActionReportRepository interface {
 	AppendReport(ctx context.Context, sessionID uuid.UUID, report *domain.ActionReport) error
 	FindReportByID(ctx context.Context, reportID uuid.UUID) (*domain.ActionReport, error)
+	FindReportByEvidenceAction(ctx context.Context, sessionID uuid.UUID, actionType domain.ActionType, evidenceID uuid.UUID) (*domain.ActionReport, error)
 	FindReportsBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.ActionReport, error)
 }
 

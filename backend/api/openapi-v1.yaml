@@ -352,7 +352,7 @@ paths:
       operationId: addInterrogationMessage
       tags: [Interrogations]
       summary: Отправить сообщение в допросе
-      description: Отправляет реплику игрока и получает ответ персонажа от LLM. LLM получает полную историю диалога (включая предыдущие допросы) и CharacterState.
+      description: Отправляет вопрос игрока и получает ответ персонажа от LLM. В одном допросе доступно до 10 вопросов; после десятого ответа допрос завершается автоматически.
       parameters:
         - $ref: "#/components/parameters/InterrogationId"
       requestBody:
@@ -367,6 +367,8 @@ paths:
                 message:
                   type: string
                   description: Текст вопроса/реплики игрока
+                  minLength: 1
+                  maxLength: 600
       responses:
         "200":
           description: Ответ персонажа (сообщение от LLM)
@@ -378,6 +380,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -386,7 +390,7 @@ paths:
       operationId: completeInterrogation
       tags: [Interrogations]
       summary: Завершить допрос
-      description: Принудительно завершает допрос (или по истечении 10 минут, или по желанию игрока).
+      description: Досрочно завершает активный допрос. Допрос также завершается автоматически после десятого ответа персонажа.
       parameters:
         - $ref: "#/components/parameters/InterrogationId"
       responses:

@@ -7,6 +7,7 @@ import '../models/game_state.dart';
 import '../models/scenario.dart';
 import '../services/api_service.dart';
 import '../services/session_service.dart';
+import '../widgets/load_error_view.dart';
 
 enum _ActionKind { evidenceAnalysis, suspectAction, camera, alibi }
 
@@ -19,6 +20,7 @@ class _ActionData {
   final int cost;
   final _ActionKind kind;
   final _ActionRequest request;
+  final String reportType;
 
   const _ActionData({
     required this.icon,
@@ -27,7 +29,15 @@ class _ActionData {
     required this.cost,
     required this.kind,
     required this.request,
+    required this.reportType,
   });
+}
+
+class _EvidenceActionData {
+  final List<Evidence> evidence;
+  final List<ActionReport> reports;
+
+  const _EvidenceActionData({required this.evidence, required this.reports});
 }
 
 const _actions = [
@@ -38,6 +48,7 @@ const _actions = [
     cost: 1,
     kind: _ActionKind.evidenceAnalysis,
     request: _ActionRequest.dnaAnalysis,
+    reportType: 'dna_analysis',
   ),
   _ActionData(
     icon: Icons.fingerprint,
@@ -46,6 +57,7 @@ const _actions = [
     cost: 1,
     kind: _ActionKind.evidenceAnalysis,
     request: _ActionRequest.fingerprints,
+    reportType: 'fingerprints',
   ),
   _ActionData(
     icon: Icons.phone_in_talk,
@@ -54,6 +66,7 @@ const _actions = [
     cost: 2,
     kind: _ActionKind.suspectAction,
     request: _ActionRequest.callHistory,
+    reportType: 'call_history',
   ),
   _ActionData(
     icon: Icons.videocam,
@@ -62,6 +75,7 @@ const _actions = [
     cost: 2,
     kind: _ActionKind.camera,
     request: _ActionRequest.cameraReview,
+    reportType: 'camera_review',
   ),
   _ActionData(
     icon: Icons.account_balance,
@@ -70,6 +84,7 @@ const _actions = [
     cost: 2,
     kind: _ActionKind.suspectAction,
     request: _ActionRequest.transactionCheck,
+    reportType: 'transaction_check',
   ),
   _ActionData(
     icon: Icons.access_time,
@@ -78,6 +93,7 @@ const _actions = [
     cost: 1,
     kind: _ActionKind.alibi,
     request: _ActionRequest.alibiCheck,
+    reportType: 'alibi_check',
   ),
 ];
 
@@ -205,7 +221,7 @@ class _ActionSheet extends StatefulWidget {
 }
 
 class _ActionSheetState extends State<_ActionSheet> {
-  Future<List<Evidence>>? _evidenceFuture;
+  Future<_EvidenceActionData>? _evidenceFuture;
   Future<List<Character>>? _charactersFuture;
   final _alibiController = TextEditingController();
   String? _evidenceID;
@@ -216,16 +232,37 @@ class _ActionSheetState extends State<_ActionSheet> {
   @override
   void initState() {
     super.initState();
-    final api = context.read<ApiService>();
     switch (widget.action.kind) {
       case _ActionKind.evidenceAnalysis:
-        _evidenceFuture = api.listEvidence();
+        _evidenceFuture = _loadEvidence();
       case _ActionKind.suspectAction:
       case _ActionKind.alibi:
-        _charactersFuture = api.listCharacters();
+        _charactersFuture = _loadCharacters();
       case _ActionKind.camera:
         break;
     }
+  }
+
+  Future<_EvidenceActionData> _loadEvidence() async {
+    final api = context.read<ApiService>();
+    final results = await Future.wait([api.listEvidence(), api.listReports()]);
+    return _EvidenceActionData(evidence: results[0] as List<Evidence>, reports: results[1] as List<ActionReport>);
+  }
+
+  Future<List<Character>> _loadCharacters() {
+    return context.read<ApiService>().listCharacters();
+  }
+
+  void _retryLoadEvidence() {
+    setState(() {
+      _evidenceFuture = _loadEvidence();
+    });
+  }
+
+  void _retryLoadCharacters() {
+    setState(() {
+      _charactersFuture = _loadCharacters();
+    });
   }
 
   @override
@@ -349,13 +386,16 @@ class _ActionSheetState extends State<_ActionSheet> {
   }
 
   Widget _buildEvidenceForm(ThemeData theme, ColorScheme colorScheme) {
-    return FutureBuilder<List<Evidence>>(
+    return FutureBuilder<_EvidenceActionData>(
       future: _evidenceFuture,
       builder: (_, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
         }
-        final evidence = snapshot.data!;
+        if (snapshot.hasError) {
+          return LoadErrorView(message: 'Не удалось загрузить список улик', onRetry: _retryLoadEvidence);
+        }
+        final data = snapshot.data!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -366,7 +406,17 @@ class _ActionSheetState extends State<_ActionSheet> {
             ),
             const SizedBox(height: 12),
             _buildSelectableList(
-              evidence.map((item) => (id: item.id, title: item.name, subtitle: item.description)).toList(),
+              data.evidence.map((item) {
+                final isCompleted = data.reports.any(
+                  (report) => report.type == widget.action.reportType && report.evidenceId == item.id,
+                );
+                return (
+                  id: item.id,
+                  title: item.name,
+                  subtitle: isCompleted ? 'Этот анализ уже выполнен' : item.description,
+                  enabled: !isCompleted,
+                );
+              }).toList(),
               _evidenceID,
               (id) => setState(() => _evidenceID = id),
             ),
@@ -382,8 +432,11 @@ class _ActionSheetState extends State<_ActionSheet> {
     return FutureBuilder<List<Character>>(
       future: _charactersFuture,
       builder: (_, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return LoadErrorView(message: 'Не удалось загрузить список подозреваемых', onRetry: _retryLoadCharacters);
         }
         final characters = snapshot.data!;
         return Column(
@@ -396,7 +449,9 @@ class _ActionSheetState extends State<_ActionSheet> {
             ),
             const SizedBox(height: 12),
             _buildSelectableList(
-              characters.map((item) => (id: item.id, title: item.name, subtitle: item.profession)).toList(),
+              characters
+                  .map((item) => (id: item.id, title: item.name, subtitle: item.profession, enabled: true))
+                  .toList(),
               _characterID,
               (id) => setState(() => _characterID = id),
             ),
@@ -432,8 +487,11 @@ class _ActionSheetState extends State<_ActionSheet> {
     return FutureBuilder<List<Character>>(
       future: _charactersFuture,
       builder: (_, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return LoadErrorView(message: 'Не удалось загрузить список подозреваемых', onRetry: _retryLoadCharacters);
         }
         final characters = snapshot.data!;
         final canSubmit = _characterID != null && _alibiController.text.trim().isNotEmpty;
@@ -444,7 +502,9 @@ class _ActionSheetState extends State<_ActionSheet> {
             Text('Выберите подозреваемого и опишите алиби для проверки.', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
             _buildSelectableList(
-              characters.map((item) => (id: item.id, title: item.name, subtitle: item.profession)).toList(),
+              characters
+                  .map((item) => (id: item.id, title: item.name, subtitle: item.profession, enabled: true))
+                  .toList(),
               _characterID,
               (id) => setState(() => _characterID = id),
             ),
@@ -469,7 +529,7 @@ class _ActionSheetState extends State<_ActionSheet> {
   }
 
   Widget _buildSelectableList(
-    List<({String id, String title, String subtitle})> items,
+    List<({String id, String title, String subtitle, bool enabled})> items,
     String? selectedID,
     ValueChanged<String> onSelected,
   ) {
@@ -478,10 +538,20 @@ class _ActionSheetState extends State<_ActionSheet> {
           items
               .map(
                 (item) => ListTile(
-                  title: Text(item.title),
+                  enabled: item.enabled,
+                  title: Text(
+                    item.title,
+                    style: item.enabled ? null : const TextStyle(decoration: TextDecoration.lineThrough),
+                  ),
                   subtitle: Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  leading: Icon(selectedID == item.id ? Icons.radio_button_checked : Icons.radio_button_unchecked),
-                  onTap: () => onSelected(item.id),
+                  leading: Icon(
+                    item.enabled
+                        ? selectedID == item.id
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked
+                        : Icons.check_circle,
+                  ),
+                  onTap: item.enabled ? () => onSelected(item.id) : null,
                   dense: true,
                 ),
               )

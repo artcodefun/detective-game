@@ -33,6 +33,22 @@ func (r *ReportRepo) FindReportByID(ctx context.Context, reportID uuid.UUID) (*d
 	return &report, nil
 }
 
+func (r *ReportRepo) FindReportByEvidenceAction(ctx context.Context, sessionID uuid.UUID, actionType domain.ActionType, evidenceID uuid.UUID) (*domain.ActionReport, error) {
+	var report domain.ActionReport
+	err := r.coll.FindOne(ctx, bson.M{
+		"session_id":  sessionID,
+		"type":        actionType,
+		"evidence_id": evidenceID,
+	}).Decode(&report)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, wrapFindError("find report by evidence action", err)
+	}
+	return &report, nil
+}
+
 func (r *ReportRepo) FindReportsBySession(ctx context.Context, sessionID uuid.UUID) ([]*domain.ActionReport, error) {
 	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID})
 	if err != nil {

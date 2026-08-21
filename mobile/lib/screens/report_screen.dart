@@ -62,6 +62,49 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Future<void> _confirmSubmit() async {
+    if (!_allFilled || _submitting) return;
+    final shouldSubmit = await showModalBottomSheet<bool>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder:
+          (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Отправить отчёт?', style: Theme.of(sheetContext).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  const Text('Расследование завершится. Изменить отчёт или вернуться к действиям уже не получится.'),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('Завершить расследование'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(sheetContext, false),
+                      child: const Text('Проверить ещё раз'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+    if (shouldSubmit == true && mounted) {
+      FocusScope.of(context).unfocus();
+      await _submit();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -104,7 +147,7 @@ class _ReportScreenState extends State<ReportScreen> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: _allFilled && !_submitting ? _submit : null,
+                onPressed: _allFilled && !_submitting ? _confirmSubmit : null,
                 icon:
                     _submitting
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))

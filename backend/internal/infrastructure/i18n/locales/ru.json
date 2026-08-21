@@ -13,10 +13,13 @@
   "error.forbidden": "Недостаточно прав",
   "error.conflict": "Операция недоступна в текущем состоянии",
   "error.invalid_input": "Некорректные данные",
+  "error.invalid_interrogation_question": "Вопрос должен содержать не более 600 символов",
 	"error.unauthorized": "Требуется авторизация",
   "error.active_interrogation_exists": "Сначала завершите текущий допрос",
   "error.no_interrogations_left": "Лимит допросов исчерпан",
+	"error.interrogation_question_limit_reached": "Лимит вопросов в допросе исчерпан",
   "error.interrogation_not_active": "Допрос уже завершён",
   "error.not_enough_action_points": "Недостаточно очков действий",
+	"error.evidence_action_already_completed": "Этот анализ для улики уже выполнен",
   "error.session_already_finished": "Расследование уже завершено"
 }

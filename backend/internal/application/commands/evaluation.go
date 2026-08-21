@@ -9,13 +9,14 @@ import (
 )
 
 type EvaluationCommands struct {
-	Sessions   ports.SessionRepository
-	LLM        ports.LlmService
-	Chronology ports.ChronologyRepository
+	Sessions       ports.SessionRepository
+	Interrogations ports.InterrogationRepository
+	LLM            ports.LlmService
+	Chronology     ports.ChronologyRepository
 }
 
-func NewEvaluationCommands(sessions ports.SessionRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *EvaluationCommands {
-	return &EvaluationCommands{Sessions: sessions, LLM: llm, Chronology: chronology}
+func NewEvaluationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *EvaluationCommands {
+	return &EvaluationCommands{Sessions: sessions, Interrogations: interrogations, LLM: llm, Chronology: chronology}
 }
 
 func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application.Actor, report domain.FinalReport) error {
@@ -38,6 +39,16 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 		NarrativeFeedback: feedback.NarrativeFeedback,
 		BreakdownDetails:  feedback.BreakdownDetails,
 		MissedFacts:       feedback.MissedFacts,
+	}
+	activeInterrogation, err := c.Interrogations.FindActiveBySession(ctx, actor.SessionID)
+	if err != nil {
+		return application.WrapError(err)
+	}
+	if activeInterrogation != nil {
+		activeInterrogation.Complete()
+		if err := c.Interrogations.UpdateInterrogation(ctx, activeInterrogation); err != nil {
+			return application.WrapError(err)
+		}
 	}
 	session.Finish(result)
 

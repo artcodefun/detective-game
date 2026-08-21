@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/action_report.dart';
 import '../models/scenario.dart';
 import '../services/api_service.dart';
+import '../widgets/load_error_view.dart';
 import 'document_screen.dart';
 
 class CaseFileScreen extends StatelessWidget {
@@ -35,7 +36,17 @@ class _FactsTabState extends State<_FactsTab> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<ApiService>().getCurrentSession().then((s) => s.caseBrief);
+    _future = _loadCaseBrief();
+  }
+
+  Future<String> _loadCaseBrief() {
+    return context.read<ApiService>().getCurrentSession().then((s) => s.caseBrief);
+  }
+
+  void _retryLoadCaseBrief() {
+    setState(() {
+      _future = _loadCaseBrief();
+    });
   }
 
   @override
@@ -46,7 +57,10 @@ class _FactsTabState extends State<_FactsTab> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
+          return LoadErrorView(message: 'Не удалось загрузить материалы дела', onRetry: _retryLoadCaseBrief);
+        }
+        if (snapshot.data == null || snapshot.data!.isEmpty) {
           return Center(
             child: Text(
               'Документ ещё не готов',
@@ -120,6 +134,12 @@ class _EvidenceTabState extends State<_EvidenceTab> {
     return [...reports.map(_ReportItem.new), ...evidence.map(_EvidenceItem.new)];
   }
 
+  void _retryLoadEvidence() {
+    setState(() {
+      _future = _fetchEvidence();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<_Item>>(
@@ -129,7 +149,7 @@ class _EvidenceTabState extends State<_EvidenceTab> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Ошибка: ${snapshot.error}'));
+          return LoadErrorView(message: 'Не удалось загрузить улики и отчёты', onRetry: _retryLoadEvidence);
         }
         final items = snapshot.data!;
         if (items.isEmpty) {

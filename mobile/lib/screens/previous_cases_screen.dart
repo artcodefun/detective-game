@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/scenario.dart';
 import '../services/api_service.dart';
+import '../widgets/load_error_view.dart';
 import 'results_screen.dart';
 
 class PreviousCasesScreen extends StatefulWidget {
@@ -21,6 +22,12 @@ class _PreviousCasesScreenState extends State<PreviousCasesScreen> {
     _future = context.read<ApiService>().listHistory();
   }
 
+  void _retryLoadHistory() {
+    setState(() {
+      _future = context.read<ApiService>().listHistory();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -35,7 +42,7 @@ class _PreviousCasesScreenState extends State<PreviousCasesScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Ошибка: ${snapshot.error}'));
+            return LoadErrorView(message: 'Не удалось загрузить предыдущие дела', onRetry: _retryLoadHistory);
           }
           final sessions = snapshot.data!;
 
