@@ -180,6 +180,7 @@ class _PhoneBookSheet extends StatefulWidget {
 
 class _PhoneBookSheetState extends State<_PhoneBookSheet> {
   Future<List<Character>>? _charactersFuture;
+  String? _loadError;
 
   Future<void> _openInterrogation({required String characterId, String? interrogationId}) async {
     final navigator = Navigator.of(context);
@@ -199,6 +200,10 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
 
   Future<void> _checkAndLoad() async {
     final api = context.read<ApiService>();
+    setState(() {
+      _loadError = null;
+      _charactersFuture = null;
+    });
     try {
       final active = await api.getActiveInterrogation();
       if (active != null && mounted) {
@@ -214,7 +219,7 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _charactersFuture = Future.error(StateError('Не удалось загрузить телефонную книгу'));
+        _loadError = 'Не удалось загрузить телефонную книгу';
       });
     }
   }
@@ -252,7 +257,9 @@ class _PhoneBookSheetState extends State<_PhoneBookSheet> {
               const SizedBox(height: 16),
               Expanded(
                 child:
-                    _charactersFuture == null
+                    _loadError != null
+                        ? LoadErrorView(message: _loadError!, onRetry: _checkAndLoad)
+                        : _charactersFuture == null
                         ? const Center(child: CircularProgressIndicator())
                         : FutureBuilder<List<Character>>(
                           future: _charactersFuture!,
