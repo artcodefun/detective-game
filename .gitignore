@@ -11,6 +11,7 @@ mobile/ios/.symlinks/
 mobile/android/.gradle/
 mobile/android/local.properties
 mobile/android/key.properties
+mobile/android/keystore/
 mobile/*.iml
 mobile/.idea/
 
