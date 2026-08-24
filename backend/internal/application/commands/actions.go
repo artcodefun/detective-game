@@ -17,10 +17,11 @@ type ActionCommands struct {
 	Characters ports.CharacterRepository
 	LLM        ports.LlmService
 	Chronology ports.ChronologyRepository
+	TxMgr      ports.TransactionManager
 }
 
-func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, evidence ports.EvidenceRepository, characters ports.CharacterRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *ActionCommands {
-	return &ActionCommands{Sessions: sessions, Reports: reports, Evidence: evidence, Characters: characters, LLM: llm, Chronology: chronology}
+func NewActionCommands(sessions ports.SessionRepository, reports ports.ActionReportRepository, evidence ports.EvidenceRepository, characters ports.CharacterRepository, llm ports.LlmService, chronology ports.ChronologyRepository, txMgr ports.TransactionManager) *ActionCommands {
+	return &ActionCommands{Sessions: sessions, Reports: reports, Evidence: evidence, Characters: characters, LLM: llm, Chronology: chronology, TxMgr: txMgr}
 }
 
 type actionRequest struct {
@@ -69,11 +70,6 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	session.SpendActionPoints(req.kind.Cost())
-	if err := c.Sessions.Update(ctx, session); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
 	report := domain.ActionReport{
 		ID:          uuid.New(),
 		Type:        req.kind,
@@ -84,12 +80,38 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 		Timestamp:   time.Now(),
 	}
 
-	if err := c.Reports.AppendReport(ctx, actor.SessionID, &report); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
+	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
+		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		if err != nil {
+			return err
+		}
+		if currentSession.Phase == domain.GamePhaseFinished {
+			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+		}
+		if currentSession.ActionPoints < req.kind.Cost() {
+			return application.NewAppError(application.KindConflict, domain.T("error.not_enough_action_points"))
+		}
+		if req.evidenceID != nil {
+			existingReport, err := c.Reports.FindReportByEvidenceAction(txCtx, actor.SessionID, req.kind, *req.evidenceID)
+			if err != nil {
+				return err
+			}
+			if existingReport != nil {
+				return application.NewAppError(application.KindConflict, domain.T("error.evidence_action_already_completed"))
+			}
+		}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFromAction(req.kind), &report.ID, report.Title, report.Timestamp)
-	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
+		currentSession.SpendActionPoints(req.kind.Cost())
+		if err := c.Sessions.Update(txCtx, currentSession); err != nil {
+			return err
+		}
+		if err := c.Reports.AppendReport(txCtx, actor.SessionID, &report); err != nil {
+			return err
+		}
+
+		chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFromAction(req.kind), &report.ID, report.Title, report.Timestamp)
+		return c.Chronology.AppendChronologyEntry(txCtx, actor.SessionID, chronology)
+	}); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 

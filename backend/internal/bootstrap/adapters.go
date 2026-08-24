@@ -26,6 +26,7 @@ type Adapters struct {
 	Evidence       ports.EvidenceRepository
 	Reports        ports.ActionReportRepository
 	Chronology     ports.ChronologyRepository
+	TxMgr          ports.TransactionManager
 
 	ReadSessions ports.SessionReadRepository
 	ReadChars    ports.CharacterReadRepository
@@ -56,6 +57,7 @@ func NewAdapters(cfg Config) *Adapters {
 		Evidence:       repo.NewEvidenceRepo(db),
 		Reports:        repo.NewReportRepo(db),
 		Chronology:     repo.NewChronologyRepo(db),
+		TxMgr:          repo.NewMongoTxManager(client),
 
 		ReadSessions: readstore.NewSessionReadRepo(db),
 		ReadChars:    readstore.NewCharacterReadRepo(db),

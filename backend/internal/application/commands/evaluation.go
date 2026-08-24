@@ -13,10 +13,11 @@ type EvaluationCommands struct {
 	Interrogations ports.InterrogationRepository
 	LLM            ports.LlmService
 	Chronology     ports.ChronologyRepository
+	TxMgr          ports.TransactionManager
 }
 
-func NewEvaluationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *EvaluationCommands {
-	return &EvaluationCommands{Sessions: sessions, Interrogations: interrogations, LLM: llm, Chronology: chronology}
+func NewEvaluationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, llm ports.LlmService, chronology ports.ChronologyRepository, txMgr ports.TransactionManager) *EvaluationCommands {
+	return &EvaluationCommands{Sessions: sessions, Interrogations: interrogations, LLM: llm, Chronology: chronology, TxMgr: txMgr}
 }
 
 func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application.Actor, report domain.FinalReport) error {
@@ -40,25 +41,33 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 		BreakdownDetails:  feedback.BreakdownDetails,
 		MissedFacts:       feedback.MissedFacts,
 	}
-	activeInterrogation, err := c.Interrogations.FindActiveBySession(ctx, actor.SessionID)
-	if err != nil {
-		return application.WrapError(err)
-	}
-	if activeInterrogation != nil {
-		activeInterrogation.Complete()
-		if err := c.Interrogations.UpdateInterrogation(ctx, activeInterrogation); err != nil {
-			return application.WrapError(err)
+	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
+		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		if err != nil {
+			return err
 		}
-	}
-	session.Finish(result)
+		if currentSession.Phase == domain.GamePhaseFinished {
+			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+		}
 
-	if err := c.Sessions.Update(ctx, session); err != nil {
-		return application.WrapError(err)
-	}
+		activeInterrogation, err := c.Interrogations.FindActiveBySession(txCtx, actor.SessionID)
+		if err != nil {
+			return err
+		}
+		if activeInterrogation != nil {
+			activeInterrogation.Complete()
+			if err := c.Interrogations.UpdateInterrogation(txCtx, activeInterrogation); err != nil {
+				return err
+			}
+		}
+		currentSession.Finish(result)
+		if err := c.Sessions.Update(txCtx, currentSession); err != nil {
+			return err
+		}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFinalReport, &actor.SessionID, domain.T("chronology.final_report_submitted"), *session.FinishedAt)
-	err = c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology)
-	if err != nil {
+		chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeFinalReport, &actor.SessionID, domain.T("chronology.final_report_submitted"), *currentSession.FinishedAt)
+		return c.Chronology.AppendChronologyEntry(txCtx, actor.SessionID, chronology)
+	}); err != nil {
 		return application.WrapError(err)
 	}
 	return nil

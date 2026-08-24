@@ -18,48 +18,50 @@ type InterrogationCommands struct {
 	Chat           ports.ChatMessageRepository
 	LLM            ports.LlmService
 	Chronology     ports.ChronologyRepository
+	TxMgr          ports.TransactionManager
 }
 
-func NewInterrogationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, chars ports.CharacterRepository, chat ports.ChatMessageRepository, llm ports.LlmService, chronology ports.ChronologyRepository) *InterrogationCommands {
-	return &InterrogationCommands{Sessions: sessions, Interrogations: interrogations, Characters: chars, Chat: chat, LLM: llm, Chronology: chronology}
+func NewInterrogationCommands(sessions ports.SessionRepository, interrogations ports.InterrogationRepository, chars ports.CharacterRepository, chat ports.ChatMessageRepository, llm ports.LlmService, chronology ports.ChronologyRepository, txMgr ports.TransactionManager) *InterrogationCommands {
+	return &InterrogationCommands{Sessions: sessions, Interrogations: interrogations, Characters: chars, Chat: chat, LLM: llm, Chronology: chronology, TxMgr: txMgr}
 }
 
 func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
-	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
-	if err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-	if session.Phase == domain.GamePhaseFinished {
-		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
-	}
-
-	active, err := c.Interrogations.FindActiveBySession(ctx, actor.SessionID)
-	if err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-	if active != nil {
-		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.active_interrogation_exists"))
-	}
-
-	char, err := c.Characters.FindCharacterByID(ctx, actor.SessionID, characterID)
-	if err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-	if !char.CanInterrogate() {
-		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.no_interrogations_left"))
-	}
-
-	char.DecrementInterrogation()
-	if err := c.Characters.UpdateCharacter(ctx, char); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
 	inter := domain.NewInterrogation(actor.SessionID, characterID)
-	if err := c.Interrogations.CreateInterrogation(ctx, inter); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeInterrogation, &inter.ID, domain.TWith("chronology.interrogation_started", map[string]any{"character_name": char.Name}), inter.CreatedAt)
-	if err := c.Chronology.AppendChronologyEntry(ctx, actor.SessionID, chronology); err != nil {
+	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
+		session, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		if err != nil {
+			return err
+		}
+		if session.Phase == domain.GamePhaseFinished {
+			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
+		}
+
+		active, err := c.Interrogations.FindActiveBySession(txCtx, actor.SessionID)
+		if err != nil {
+			return err
+		}
+		if active != nil {
+			return application.NewAppError(application.KindConflict, domain.T("error.active_interrogation_exists"))
+		}
+
+		char, err := c.Characters.FindCharacterByID(txCtx, actor.SessionID, characterID)
+		if err != nil {
+			return err
+		}
+		if !char.CanInterrogate() {
+			return application.NewAppError(application.KindConflict, domain.T("error.no_interrogations_left"))
+		}
+
+		char.DecrementInterrogation()
+		if err := c.Characters.UpdateCharacter(txCtx, char); err != nil {
+			return err
+		}
+		if err := c.Interrogations.CreateInterrogation(txCtx, inter); err != nil {
+			return err
+		}
+		chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeInterrogation, &inter.ID, domain.TWith("chronology.interrogation_started", map[string]any{"character_name": char.Name}), inter.CreatedAt)
+		return c.Chronology.AppendChronologyEntry(txCtx, actor.SessionID, chronology)
+	}); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
@@ -114,22 +116,6 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		Text:            message,
 		Timestamp:       now,
 	}
-	if err := c.Chat.AppendChatMessage(ctx, &playerMsg); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	char.ApplyAttitudeDelta(resp.AttitudeDelta)
-	char.Memories = append(char.Memories,
-		domain.Memory{
-			Content:   "Детектив спросил: " + message,
-			Timestamp: time.Now().Format(time.RFC3339),
-		},
-		domain.Memory{
-			Content:   char.Name + " ответил: " + resp.Answer,
-			Timestamp: time.Now().Format(time.RFC3339),
-		},
-	)
-
 	npcMsg := domain.ChatMessage{
 		ID:              uuid.New(),
 		SessionID:       actor.SessionID,
@@ -140,34 +126,56 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		AttitudeDelta:   resp.AttitudeDelta,
 		Timestamp:       now,
 	}
-	if err := c.Chat.AppendChatMessage(ctx, &npcMsg); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	if err := c.Characters.UpdateCharacter(ctx, char); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	details := make([]domain.NotebookEntry, 0, len(resp.Statements))
-	for _, statement := range resp.Statements {
-		details = append(details, domain.NotebookEntry{
-			ID:          uuid.New(),
-			Type:        domain.NotebookEntryTypeStatement,
-			CharacterID: &inter.CharacterID,
-			Description: statement,
-			Timestamp:   time.Now(),
-		})
-	}
-	if len(details) > 0 {
-		if err := c.Chronology.AppendNotebookEntries(ctx, actor.SessionID, interrogationID, details); err != nil {
-			return uuid.Nil, application.WrapError(err)
+	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
+		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		if err != nil {
+			return err
 		}
-	}
-	if inter.ShouldCompleteAfterQuestion(messages) {
-		inter.Complete()
-		if err := c.Interrogations.UpdateInterrogation(ctx, inter); err != nil {
-			return uuid.Nil, application.WrapError(err)
+		if currentSession.Phase == domain.GamePhaseFinished {
+			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 		}
+		currentInter, err := c.Interrogations.FindInterrogationByID(txCtx, interrogationID)
+		if err != nil {
+			return err
+		}
+		messages, err := c.Chat.FindChatByInterrogation(txCtx, interrogationID)
+		if err != nil {
+			return err
+		}
+		if !currentInter.CanAskQuestion(messages) {
+			return application.NewAppError(application.KindConflict, domain.T("error.interrogation_question_limit_reached"))
+		}
+		currentChar, err := c.Characters.FindCharacterByID(txCtx, actor.SessionID, currentInter.CharacterID)
+		if err != nil {
+			return err
+		}
+		if err := c.Chat.AppendChatMessage(txCtx, &playerMsg); err != nil {
+			return err
+		}
+		if err := c.Chat.AppendChatMessage(txCtx, &npcMsg); err != nil {
+			return err
+		}
+		currentChar.ApplyAttitudeDelta(resp.AttitudeDelta)
+		currentChar.Memories = append(currentChar.Memories, domain.Memory{Content: "Детектив спросил: " + message, Timestamp: now.Format(time.RFC3339)}, domain.Memory{Content: currentChar.Name + " ответил: " + resp.Answer, Timestamp: now.Format(time.RFC3339)})
+		if err := c.Characters.UpdateCharacter(txCtx, currentChar); err != nil {
+			return err
+		}
+		details := make([]domain.NotebookEntry, 0, len(resp.Statements))
+		for _, statement := range resp.Statements {
+			details = append(details, domain.NotebookEntry{ID: uuid.New(), Type: domain.NotebookEntryTypeStatement, CharacterID: &currentInter.CharacterID, Description: statement, Timestamp: now})
+		}
+		if len(details) > 0 {
+			if err := c.Chronology.AppendNotebookEntries(txCtx, actor.SessionID, interrogationID, details); err != nil {
+				return err
+			}
+		}
+		if currentInter.ShouldCompleteAfterQuestion(messages) {
+			currentInter.Complete()
+			return c.Interrogations.UpdateInterrogation(txCtx, currentInter)
+		}
+		return nil
+	}); err != nil {
+		return uuid.Nil, application.WrapError(err)
 	}
 
 	return npcMsg.ID, nil

@@ -16,20 +16,17 @@ type ScenarioCommands struct {
 	Characters ports.CharacterRepository
 	Evidence   ports.EvidenceRepository
 	Chronology ports.ChronologyRepository
+	TxMgr      ports.TransactionManager
 }
 
-func NewScenarioCommands(sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, chronology ports.ChronologyRepository) *ScenarioCommands {
-	return &ScenarioCommands{Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology}
+func NewScenarioCommands(sessions ports.SessionRepository, llm ports.LlmService, chars ports.CharacterRepository, ev ports.EvidenceRepository, chronology ports.ChronologyRepository, txMgr ports.TransactionManager) *ScenarioCommands {
+	return &ScenarioCommands{Sessions: sessions, LLM: llm, Characters: chars, Evidence: ev, Chronology: chronology, TxMgr: txMgr}
 }
 
 func (c *ScenarioCommands) CreateSession(ctx context.Context, actor application.Actor) (uuid.UUID, error) {
 	userID := actor.UserID
 	output, err := c.LLM.GenerateScenario(ctx, actor.Locale)
 	if err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	if err := c.Sessions.FinishActiveByUserID(ctx, userID); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 
@@ -48,25 +45,30 @@ func (c *ScenarioCommands) CreateSession(ctx context.Context, actor application.
 		ContentLocale: actor.Locale,
 	}
 
-	if err := c.Sessions.Create(ctx, session); err != nil {
-		return uuid.Nil, application.WrapError(err)
-	}
-
-	for i := range output.Characters {
-		output.Characters[i].AssignToSession(sessionID)
-		if err := c.Characters.CreateCharacter(ctx, &output.Characters[i]); err != nil {
-			return uuid.Nil, application.WrapError(err)
+	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
+		if err := c.Sessions.FinishActiveByUserID(txCtx, userID); err != nil {
+			return err
 		}
-	}
-
-	for i := range output.Evidence {
-		if err := c.Evidence.AppendEvidence(ctx, sessionID, &output.Evidence[i]); err != nil {
-			return uuid.Nil, application.WrapError(err)
+		if err := c.Sessions.Create(txCtx, session); err != nil {
+			return err
 		}
-	}
 
-	chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeCaseStarted, &sessionID, domain.T("chronology.case_started"), session.CreatedAt)
-	if err := c.Chronology.AppendChronologyEntry(ctx, sessionID, chronology); err != nil {
+		for i := range output.Characters {
+			output.Characters[i].AssignToSession(sessionID)
+			if err := c.Characters.CreateCharacter(txCtx, &output.Characters[i]); err != nil {
+				return err
+			}
+		}
+
+		for i := range output.Evidence {
+			if err := c.Evidence.AppendEvidence(txCtx, sessionID, &output.Evidence[i]); err != nil {
+				return err
+			}
+		}
+
+		chronology := domain.NewChronologyEntry(domain.ChronologyEventTypeCaseStarted, &sessionID, domain.T("chronology.case_started"), session.CreatedAt)
+		return c.Chronology.AppendChronologyEntry(txCtx, sessionID, chronology)
+	}); err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 

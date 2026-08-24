@@ -16,10 +16,10 @@ type Commands struct {
 func NewCommands(a *Adapters) *Commands {
 	return &Commands{
 		User:          commands.NewUserCommands(a.Users),
-		Scenario:      commands.NewScenarioCommands(a.Sessions, a.LLM, a.Characters, a.Evidence, a.Chronology),
-		Interrogation: commands.NewInterrogationCommands(a.Sessions, a.Interrogations, a.Characters, a.Chat, a.LLM, a.Chronology),
-		Evaluation:    commands.NewEvaluationCommands(a.Sessions, a.Interrogations, a.LLM, a.Chronology),
-		Actions:       commands.NewActionCommands(a.Sessions, a.Reports, a.Evidence, a.Characters, a.LLM, a.Chronology),
+		Scenario:      commands.NewScenarioCommands(a.Sessions, a.LLM, a.Characters, a.Evidence, a.Chronology, a.TxMgr),
+		Interrogation: commands.NewInterrogationCommands(a.Sessions, a.Interrogations, a.Characters, a.Chat, a.LLM, a.Chronology, a.TxMgr),
+		Evaluation:    commands.NewEvaluationCommands(a.Sessions, a.Interrogations, a.LLM, a.Chronology, a.TxMgr),
+		Actions:       commands.NewActionCommands(a.Sessions, a.Reports, a.Evidence, a.Characters, a.LLM, a.Chronology, a.TxMgr),
 		Notebook:      commands.NewNotebookCommands(a.Chronology),
 	}
 }
