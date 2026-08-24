@@ -23,19 +23,11 @@ Compose запускает API и MongoDB, а данные базы сохран
 ```bash
 cp .env.example .env
 # Заполни OPENROUTER_API_KEY и задай надёжный MONGO_ROOT_PASSWORD.
-docker compose up -d mongo
-set -a
-source .env
-set +a
-docker compose exec mongo mongosh --quiet --username "$MONGO_ROOT_USERNAME" --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]})'
+bash scripts/init-mongo-replica.sh
 docker compose up -d --build api
 ```
 
-`rs.initiate()` выполняется один раз. Проверка:
-
-```bash
-docker compose exec mongo mongosh --quiet --username "$MONGO_ROOT_USERNAME" --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'rs.status().set'
-```
+Скрипт создаёт `mongo-keyfile` при первом запуске и один раз инициализирует `rs0`.
 
 API будет доступен только с сервера по `http://127.0.0.1:${HOST_PORT:-8080}`.
 Для внешнего доступа используй reverse proxy.

@@ -1,13 +1,14 @@
 services:
   mongo:
     image: mongo:8.0
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile"]
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
     volumes:
       - mongo_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     ports:
       - "127.0.0.1:${MONGO_HOST_PORT:-27017}:27017"
     healthcheck:

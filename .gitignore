@@ -19,6 +19,7 @@ mobile/.idea/
 backend/node_modules/
 backend/venv/
 backend/.env
+backend/mongo-keyfile
 backend/cmd/server/__debug_bin*
 
 # OS
