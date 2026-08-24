@@ -36,6 +36,10 @@ class DetectiveGameApp extends StatelessWidget {
       child: MaterialApp(
         title: 'ДетектИИв',
         debugShowCheckedModeBanner: false,
+        // Android renders Flutter apps edge-to-edge. Keep every route and
+        // modal sheet above the system navigation area; AppBar still handles
+        // the top system inset itself.
+        builder: (context, child) => SafeArea(top: false, child: child ?? const SizedBox.shrink()),
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.amber, brightness: Brightness.dark),
           useMaterial3: true,
