@@ -455,54 +455,58 @@ class _InterrogationScreenState extends State<InterrogationScreen> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      reverse: true,
-      padding: const EdgeInsets.all(16),
-      itemCount:
-          _messages.length +
-          (_pendingMessageText == null ? 0 : 1) +
-          (_failedMessageText == null ? 0 : 1) +
-          (_isWaiting ? 1 : 0),
-      itemBuilder: (_, index) {
-        var itemIndex = index;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ListView.builder(
+        controller: _scrollController,
+        reverse: true,
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(16),
+        itemCount:
+            _messages.length +
+            (_pendingMessageText == null ? 0 : 1) +
+            (_failedMessageText == null ? 0 : 1) +
+            (_isWaiting ? 1 : 0),
+        itemBuilder: (_, index) {
+          var itemIndex = index;
 
-        if (_isWaiting) {
-          if (itemIndex == 0) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(width: 36),
-                  SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-                ],
-              ),
-            );
+          if (_isWaiting) {
+            if (itemIndex == 0) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(width: 36),
+                    SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ],
+                ),
+              );
+            }
+            itemIndex--;
           }
-          itemIndex--;
-        }
 
-        if (_pendingMessageText case final pendingText?) {
-          if (itemIndex == 0) {
-            return ChatBubble(text: pendingText, isPlayer: true, senderName: 'Вы');
+          if (_pendingMessageText case final pendingText?) {
+            if (itemIndex == 0) {
+              return ChatBubble(text: pendingText, isPlayer: true, senderName: 'Вы');
+            }
+            itemIndex--;
           }
-          itemIndex--;
-        }
 
-        if (_failedMessageText case final failedText?) {
-          if (itemIndex == 0) {
-            return ChatBubble(text: failedText, isPlayer: true, senderName: 'Вы', isFailed: true);
+          if (_failedMessageText case final failedText?) {
+            if (itemIndex == 0) {
+              return ChatBubble(text: failedText, isPlayer: true, senderName: 'Вы', isFailed: true);
+            }
+            itemIndex--;
           }
-          itemIndex--;
-        }
 
-        final message = _messages[_messages.length - 1 - itemIndex];
-        return ChatBubble(
-          text: message.text,
-          isPlayer: message.fromUser,
-          senderName: message.fromUser ? 'Вы' : characterName,
-        );
-      },
+          final message = _messages[_messages.length - 1 - itemIndex];
+          return ChatBubble(
+            text: message.text,
+            isPlayer: message.fromUser,
+            senderName: message.fromUser ? 'Вы' : characterName,
+          );
+        },
+      ),
     );
   }
 
