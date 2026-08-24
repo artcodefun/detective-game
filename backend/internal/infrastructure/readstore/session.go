@@ -41,9 +41,9 @@ func (r *SessionReadRepo) GetSessionByID(ctx context.Context, userID uuid.UUID, 
 	return readmodels.SessionFromDomain(&session), nil
 }
 
-func (r *SessionReadRepo) GetGameResult(ctx context.Context, sessionID uuid.UUID) (*readmodels.GameResult, error) {
+func (r *SessionReadRepo) GetGameResult(ctx context.Context, userID, sessionID uuid.UUID) (*readmodels.GameResult, error) {
 	var session domain.Session
-	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID}).Decode(&session)
+	err := r.coll.FindOne(ctx, bson.M{"_id": sessionID, "user_id": userID}).Decode(&session)
 	if err != nil {
 		return nil, wrapFindError("find session", err)
 	}

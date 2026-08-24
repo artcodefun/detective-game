@@ -19,17 +19,17 @@ func NewChatQueries(chat ports.ChatMessageReadRepository, chars ports.CharacterR
 }
 
 func (q *ChatQueries) GetChatMessage(ctx context.Context, actor application.Actor, messageID uuid.UUID) (*readmodels.ChatMessage, error) {
-	m, err := q.Chat.GetChatMessage(ctx, messageID)
+	m, err := q.Chat.GetChatMessage(ctx, actor.SessionID, messageID)
 	return m, application.WrapError(err)
 }
 
 func (q *ChatQueries) ListChatByInterrogation(ctx context.Context, actor application.Actor, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error) {
-	m, err := q.Chat.ListChatByInterrogation(ctx, interrogationID)
+	m, err := q.Chat.ListChatByInterrogation(ctx, actor.SessionID, interrogationID)
 	return m, application.WrapError(err)
 }
 
 func (q *ChatQueries) GetInterrogation(ctx context.Context, actor application.Actor, interrogationID uuid.UUID) (*readmodels.Interrogation, error) {
-	i, err := q.Characters.GetInterrogation(ctx, interrogationID)
+	i, err := q.Characters.GetInterrogation(ctx, actor.SessionID, interrogationID)
 	return i, application.WrapError(err)
 }
 

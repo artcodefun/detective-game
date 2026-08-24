@@ -76,14 +76,14 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		return uuid.Nil, application.WrapError(err)
 	}
 
-	inter, err := c.Interrogations.FindInterrogationByID(ctx, interrogationID)
+	inter, err := c.Interrogations.FindInterrogationByID(ctx, actor.SessionID, interrogationID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
 	if !inter.IsActive() {
 		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.interrogation_not_active"))
 	}
-	messages, err := c.Chat.FindChatByInterrogation(ctx, interrogationID)
+	messages, err := c.Chat.FindChatByInterrogation(ctx, actor.SessionID, interrogationID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
 	}
@@ -125,11 +125,11 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		if err != nil {
 			return err
 		}
-		currentInter, err := c.Interrogations.FindInterrogationByID(txCtx, interrogationID)
+		currentInter, err := c.Interrogations.FindInterrogationByID(txCtx, actor.SessionID, interrogationID)
 		if err != nil {
 			return err
 		}
-		messages, err := c.Chat.FindChatByInterrogation(txCtx, interrogationID)
+		messages, err := c.Chat.FindChatByInterrogation(txCtx, actor.SessionID, interrogationID)
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 }
 
 func (c *InterrogationCommands) Complete(ctx context.Context, actor application.Actor, interrogationID uuid.UUID) error {
-	inter, err := c.Interrogations.FindInterrogationByID(ctx, interrogationID)
+	inter, err := c.Interrogations.FindInterrogationByID(ctx, actor.SessionID, interrogationID)
 	if err != nil {
 		return application.WrapError(err)
 	}

@@ -20,9 +20,9 @@ func NewChatReadRepo(db *mongo.Database) *ChatReadRepo {
 	return &ChatReadRepo{coll: db.Collection("chat_messages")}
 }
 
-func (r *ChatReadRepo) GetChatMessage(ctx context.Context, messageID uuid.UUID) (*readmodels.ChatMessage, error) {
+func (r *ChatReadRepo) GetChatMessage(ctx context.Context, sessionID, messageID uuid.UUID) (*readmodels.ChatMessage, error) {
 	var msg domain.ChatMessage
-	err := r.coll.FindOne(ctx, bson.M{"_id": messageID}).Decode(&msg)
+	err := r.coll.FindOne(ctx, bson.M{"_id": messageID, "session_id": sessionID}).Decode(&msg)
 	if err != nil {
 		return nil, wrapFindError("find chat message", err)
 	}
@@ -30,8 +30,8 @@ func (r *ChatReadRepo) GetChatMessage(ctx context.Context, messageID uuid.UUID) 
 	return &rm, nil
 }
 
-func (r *ChatReadRepo) ListChatByInterrogation(ctx context.Context, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"interrogation_id": interrogationID}, options.Find().SetSort(bson.M{"timestamp": 1}))
+func (r *ChatReadRepo) ListChatByInterrogation(ctx context.Context, sessionID, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error) {
+	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID, "interrogation_id": interrogationID}, options.Find().SetSort(bson.M{"timestamp": 1}))
 	if err != nil {
 		return nil, fmt.Errorf("list chat messages: %w", err)
 	}

@@ -29,7 +29,7 @@ func (q *EvidenceQueries) GetEvidence(ctx context.Context, actor application.Act
 }
 
 func (q *EvidenceQueries) GetReport(ctx context.Context, actor application.Actor, reportID uuid.UUID) (*readmodels.ActionReport, error) {
-	r, err := q.Reports.GetReport(ctx, reportID)
+	r, err := q.Reports.GetReport(ctx, actor.SessionID, reportID)
 	return r, application.WrapError(err)
 }
 

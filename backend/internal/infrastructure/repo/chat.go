@@ -24,8 +24,8 @@ func (r *ChatRepo) AppendChatMessage(ctx context.Context, msg *domain.ChatMessag
 	return err
 }
 
-func (r *ChatRepo) FindChatByInterrogation(ctx context.Context, interrogationID uuid.UUID) ([]*domain.ChatMessage, error) {
-	cursor, err := r.coll.Find(ctx, bson.M{"interrogation_id": interrogationID}, options.Find().SetSort(bson.M{"timestamp": 1}))
+func (r *ChatRepo) FindChatByInterrogation(ctx context.Context, sessionID, interrogationID uuid.UUID) ([]*domain.ChatMessage, error) {
+	cursor, err := r.coll.Find(ctx, bson.M{"session_id": sessionID, "interrogation_id": interrogationID}, options.Find().SetSort(bson.M{"timestamp": 1}))
 	if err != nil {
 		return nil, fmt.Errorf("find chat messages: %w", err)
 	}

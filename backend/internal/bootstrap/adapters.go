@@ -79,6 +79,13 @@ func (a *Adapters) Setup(ctx context.Context) error {
 	if err := users.EnsureIndexes(ctx); err != nil {
 		return fmt.Errorf("create user indexes: %w", err)
 	}
+	interrogations, ok := a.Interrogations.(*repo.InterrogationRepo)
+	if !ok {
+		return fmt.Errorf("interrogations adapter does not support setup")
+	}
+	if err := interrogations.EnsureIndexes(ctx); err != nil {
+		return fmt.Errorf("create interrogation indexes: %w", err)
+	}
 	return nil
 }
 

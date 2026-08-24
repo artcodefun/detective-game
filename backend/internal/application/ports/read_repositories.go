@@ -10,20 +10,20 @@ import (
 type SessionReadRepository interface {
 	GetSession(ctx context.Context, userID uuid.UUID) (*readmodels.Session, error)
 	GetSessionByID(ctx context.Context, userID uuid.UUID, sessionID uuid.UUID) (*readmodels.Session, error)
-	GetGameResult(ctx context.Context, sessionID uuid.UUID) (*readmodels.GameResult, error)
+	GetGameResult(ctx context.Context, userID, sessionID uuid.UUID) (*readmodels.GameResult, error)
 	ListHistory(ctx context.Context, userID uuid.UUID) ([]*readmodels.Session, error)
 }
 
 type CharacterReadRepository interface {
 	ListCharacters(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.Character, error)
 	GetCharacter(ctx context.Context, sessionID uuid.UUID, characterID uuid.UUID) (*readmodels.Character, error)
-	GetInterrogation(ctx context.Context, interrogationID uuid.UUID) (*readmodels.Interrogation, error)
+	GetInterrogation(ctx context.Context, sessionID, interrogationID uuid.UUID) (*readmodels.Interrogation, error)
 	GetActiveInterrogation(ctx context.Context, sessionID uuid.UUID) (*readmodels.Interrogation, error)
 }
 
 type ChatMessageReadRepository interface {
-	GetChatMessage(ctx context.Context, messageID uuid.UUID) (*readmodels.ChatMessage, error)
-	ListChatByInterrogation(ctx context.Context, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error)
+	GetChatMessage(ctx context.Context, sessionID, messageID uuid.UUID) (*readmodels.ChatMessage, error)
+	ListChatByInterrogation(ctx context.Context, sessionID, interrogationID uuid.UUID) ([]*readmodels.ChatMessage, error)
 }
 
 type EvidenceReadRepository interface {
@@ -32,7 +32,7 @@ type EvidenceReadRepository interface {
 }
 
 type ReportReadRepository interface {
-	GetReport(ctx context.Context, reportID uuid.UUID) (*readmodels.ActionReport, error)
+	GetReport(ctx context.Context, sessionID, reportID uuid.UUID) (*readmodels.ActionReport, error)
 	ListReports(ctx context.Context, sessionID uuid.UUID) ([]*readmodels.ActionReport, error)
 }
 

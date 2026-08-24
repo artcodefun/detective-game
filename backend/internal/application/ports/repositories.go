@@ -29,14 +29,14 @@ type CharacterRepository interface {
 
 type InterrogationRepository interface {
 	CreateInterrogation(ctx context.Context, interrogation *domain.Interrogation) error
-	FindInterrogationByID(ctx context.Context, id uuid.UUID) (*domain.Interrogation, error)
+	FindInterrogationByID(ctx context.Context, sessionID, id uuid.UUID) (*domain.Interrogation, error)
 	FindActiveBySession(ctx context.Context, sessionID uuid.UUID) (*domain.Interrogation, error)
 	UpdateInterrogation(ctx context.Context, interrogation *domain.Interrogation) error
 }
 
 type ChatMessageRepository interface {
 	AppendChatMessage(ctx context.Context, msg *domain.ChatMessage) error
-	FindChatByInterrogation(ctx context.Context, interrogationID uuid.UUID) ([]*domain.ChatMessage, error)
+	FindChatByInterrogation(ctx context.Context, sessionID, interrogationID uuid.UUID) ([]*domain.ChatMessage, error)
 	FindChatByID(ctx context.Context, id uuid.UUID) (*domain.ChatMessage, error)
 }
 

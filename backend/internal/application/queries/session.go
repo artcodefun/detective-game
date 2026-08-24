@@ -42,6 +42,6 @@ func (q *SessionQueries) ListHistory(ctx context.Context, actor application.Acto
 }
 
 func (q *SessionQueries) GetGameResult(ctx context.Context, actor application.Actor) (*readmodels.GameResult, error) {
-	r, err := q.ReadStore.GetGameResult(ctx, actor.SessionID)
+	r, err := q.ReadStore.GetGameResult(ctx, actor.UserID, actor.SessionID)
 	return r, application.WrapError(err)
 }

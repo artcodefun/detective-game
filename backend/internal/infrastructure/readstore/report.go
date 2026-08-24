@@ -20,9 +20,9 @@ func NewReportReadRepo(db *mongo.Database) *ReportReadRepo {
 	return &ReportReadRepo{coll: db.Collection("reports")}
 }
 
-func (r *ReportReadRepo) GetReport(ctx context.Context, reportID uuid.UUID) (*readmodels.ActionReport, error) {
+func (r *ReportReadRepo) GetReport(ctx context.Context, sessionID, reportID uuid.UUID) (*readmodels.ActionReport, error) {
 	var report domain.ActionReport
-	err := r.coll.FindOne(ctx, bson.M{"_id": reportID}).Decode(&report)
+	err := r.coll.FindOne(ctx, bson.M{"_id": reportID, "session_id": sessionID}).Decode(&report)
 	if err != nil {
 		return nil, wrapFindError("find report", err)
 	}
