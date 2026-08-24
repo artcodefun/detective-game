@@ -23,18 +23,22 @@ Compose запускает API и MongoDB, а данные базы сохран
 ```bash
 cp .env.example .env
 # Заполни OPENROUTER_API_KEY и задай надёжный MONGO_ROOT_PASSWORD.
-docker compose up --build -d
+docker compose up -d mongo
+set -a
+source .env
+set +a
+docker compose exec mongo mongosh --quiet --username "$MONGO_ROOT_USERNAME" --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]})'
+docker compose up -d --build api
 ```
 
-Если `.env` уже существовал, добавь в него `MONGO_ROOT_USERNAME` и
-`MONGO_ROOT_PASSWORD` из `.env.example`; Compose намеренно не запускается без
-этих переменных.
+`rs.initiate()` выполняется один раз. Проверка:
 
-API будет доступен только с самого сервера по `http://127.0.0.1:${HOST_PORT:-8080}`.
-Для внешнего доступа используй reverse proxy. `PORT` задаёт порт API внутри контейнера,
-а `HOST_PORT` — локальный порт сервера; например, `HOST_PORT=8081 docker compose up -d`.
-`MONGO_URI` из `.env` используется при локальном запуске; в контейнере Compose
-подменяет его внутренним адресом MongoDB.
+```bash
+docker compose exec mongo mongosh --quiet --username "$MONGO_ROOT_USERNAME" --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'rs.status().set'
+```
+
+API будет доступен только с сервера по `http://127.0.0.1:${HOST_PORT:-8080}`.
+Для внешнего доступа используй reverse proxy.
 
 ### MongoDB Compass
 
@@ -48,7 +52,7 @@ ssh -N -L 27017:127.0.0.1:27017 <user>@<server>
 После этого подключись в MongoDB Compass по строке:
 
 ```text
-mongodb://detective_game:<MONGO_ROOT_PASSWORD>@127.0.0.1:27017/?authSource=admin
+mongodb://detective_game:<MONGO_ROOT_PASSWORD>@127.0.0.1:27017/?authSource=admin&directConnection=true
 ```
 
 Если `27017` занят только на локальном компьютере, измени левую часть
@@ -69,7 +73,7 @@ docker compose down
 | `PORT` | `8080` | Порт сервера |
 | `OPENROUTER_API_KEY` | — | API-ключ OpenRouter |
 | `OPENROUTER_MODEL` | `deepseek/deepseek-v4-flash` | Модель для запросов |
-| `MONGO_URI` | `mongodb://localhost:27017` | Подключение к MongoDB |
+| `MONGO_URI` | `mongodb://localhost:27017/?replicaSet=rs0` | Подключение к MongoDB |
 | `MONGO_DATABASE` | `detective_game` | Имя базы данных |
 | `IOS_MIN_SUPPORTED_VERSION` | `0.0.0` | Минимальная версия приложения для iOS |
 | `ANDROID_MIN_SUPPORTED_VERSION` | `0.0.0` | Минимальная версия приложения для Android |
