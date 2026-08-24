@@ -21,12 +21,9 @@ func NewEvaluationCommands(sessions ports.SessionRepository, interrogations port
 }
 
 func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application.Actor, report domain.FinalReport) error {
-	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	session, err := requireActiveSession(ctx, c.Sessions, actor.SessionID)
 	if err != nil {
 		return application.WrapError(err)
-	}
-	if session.Phase == domain.GamePhaseFinished {
-		return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 	}
 
 	feedback, err := c.LLM.EvaluateReport(ctx, session.ContentLocale, report, session.Crime)
@@ -42,12 +39,9 @@ func (c *EvaluationCommands) SubmitReport(ctx context.Context, actor application
 		MissedFacts:       feedback.MissedFacts,
 	}
 	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
-		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		currentSession, err := requireActiveSession(txCtx, c.Sessions, actor.SessionID)
 		if err != nil {
 			return err
-		}
-		if currentSession.Phase == domain.GamePhaseFinished {
-			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 		}
 
 		activeInterrogation, err := c.Interrogations.FindActiveBySession(txCtx, actor.SessionID)

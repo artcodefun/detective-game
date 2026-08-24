@@ -32,12 +32,9 @@ type actionRequest struct {
 }
 
 func (c *ActionCommands) executeAction(ctx context.Context, actor application.Actor, req actionRequest) (uuid.UUID, error) {
-	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	session, err := requireActiveSession(ctx, c.Sessions, actor.SessionID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
-	}
-	if session.Phase == domain.GamePhaseFinished {
-		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 	}
 
 	if session.ActionPoints < req.kind.Cost() {
@@ -81,12 +78,9 @@ func (c *ActionCommands) executeAction(ctx context.Context, actor application.Ac
 	}
 
 	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
-		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		currentSession, err := requireActiveSession(txCtx, c.Sessions, actor.SessionID)
 		if err != nil {
 			return err
-		}
-		if currentSession.Phase == domain.GamePhaseFinished {
-			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 		}
 		if currentSession.ActionPoints < req.kind.Cost() {
 			return application.NewAppError(application.KindConflict, domain.T("error.not_enough_action_points"))

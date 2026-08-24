@@ -28,12 +28,9 @@ func NewInterrogationCommands(sessions ports.SessionRepository, interrogations p
 func (c *InterrogationCommands) Create(ctx context.Context, actor application.Actor, characterID uuid.UUID) (uuid.UUID, error) {
 	inter := domain.NewInterrogation(actor.SessionID, characterID)
 	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
-		session, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		_, err := requireActiveSession(txCtx, c.Sessions, actor.SessionID)
 		if err != nil {
 			return err
-		}
-		if session.Phase == domain.GamePhaseFinished {
-			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 		}
 
 		active, err := c.Interrogations.FindActiveBySession(txCtx, actor.SessionID)
@@ -74,12 +71,9 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		return uuid.Nil, application.NewAppError(application.KindInvalidInput, domain.T("error.invalid_interrogation_question"))
 	}
 
-	session, err := c.Sessions.FindByID(ctx, actor.SessionID)
+	_, err := requireActiveSession(ctx, c.Sessions, actor.SessionID)
 	if err != nil {
 		return uuid.Nil, application.WrapError(err)
-	}
-	if session.Phase == domain.GamePhaseFinished {
-		return uuid.Nil, application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 	}
 
 	inter, err := c.Interrogations.FindInterrogationByID(ctx, interrogationID)
@@ -127,12 +121,9 @@ func (c *InterrogationCommands) AddMessage(ctx context.Context, actor applicatio
 		Timestamp:       now,
 	}
 	if err := c.TxMgr.WithTx(ctx, func(txCtx context.Context) error {
-		currentSession, err := c.Sessions.FindByID(txCtx, actor.SessionID)
+		_, err := requireActiveSession(txCtx, c.Sessions, actor.SessionID)
 		if err != nil {
 			return err
-		}
-		if currentSession.Phase == domain.GamePhaseFinished {
-			return application.NewAppError(application.KindConflict, domain.T("error.session_already_finished"))
 		}
 		currentInter, err := c.Interrogations.FindInterrogationByID(txCtx, interrogationID)
 		if err != nil {
