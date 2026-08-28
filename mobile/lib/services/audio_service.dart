@@ -38,7 +38,9 @@ class AudioService {
   Duration? _musicDuration;
   Duration? _musicResumePosition;
   int? _currentMusicIndex;
+  bool _pausedForAppLifecycle = false;
   bool _musicPaused = false;
+  bool _resumeAfterAppLifecycle = false;
   double _soundVolume = 0.7;
   double _musicVolume = 0.5;
 
@@ -119,6 +121,24 @@ class AudioService {
       _musicResumePosition = SoLoud.instance.getPosition(handle);
       SoLoud.instance.setPause(handle, true);
     }
+  }
+
+  void pauseForAppLifecycle() {
+    if (_pausedForAppLifecycle) return;
+
+    _pausedForAppLifecycle = true;
+    _resumeAfterAppLifecycle = !_musicPaused;
+    pauseMusic();
+  }
+
+  Future<void> resumeAfterAppLifecycle() async {
+    if (!_pausedForAppLifecycle) return;
+
+    _pausedForAppLifecycle = false;
+    if (!_resumeAfterAppLifecycle) return;
+
+    _resumeAfterAppLifecycle = false;
+    await resumeMusic();
   }
 
   Future<void> afterSpeechRecognition() {
